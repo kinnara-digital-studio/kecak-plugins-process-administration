@@ -1,0 +1,51 @@
+[{
+        title: '@@processAdministration.processReassignmentUserviewMenu@@',
+        properties:[{
+            name : 'customId',
+            label : '@@processAdministration.customId@@',
+            type : 'textfield'
+        },{
+            name : 'label',
+            label : '@@processAdministration.label@@',
+            type : 'textfield'
+        },{
+            name : 'processDefId',
+            label : '@@processAdministration.process@@',
+            type : 'textfield',
+            required : 'True',
+            options_ajax : '[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service'
+        },{
+            name : 'tableName',
+            label : '@@processAdministration.tableName@@',
+            description: '@@processAdministration.tableName.desc@@',
+            type : 'textfield'
+        },{
+            name : 'fieldId',
+            label : '@@processAdministration.refField@@',
+            description: '@@processAdministration.refField.desc@@',
+            type : 'textfield'
+        },{
+            name : 'masterUser',
+            label : '@@processAdministration.masterUser@@',
+            description: '@@processAdministration.masterUser.desc@@',
+            type : 'textfield',
+            required: 'true'
+        },{
+            name : 'masterHash',
+            label : '@@processAdministration.masterHash@@',
+            description: '@@processAdministration.masterHash.desc@@',
+            type : 'textfield',
+            required: 'true'
+        },{
+            name : 'histFormDefId',
+            label : 'History Form',
+            type : 'selectbox',
+            options_ajax : '[CONTEXT_PATH]/web/json/console/app[APP_PATH]/forms/options'
+        },{
+            name : 'refField',
+            label : 'Reference Field',
+            description: 'Field ID to store reference field like ticketNo or memoNo',
+            type : 'textfield'
+        }]
+}]
+
