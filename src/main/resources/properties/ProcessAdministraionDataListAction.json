@@ -1,0 +1,41 @@
+[
+  {
+    title : 'Edit @@processAdministration.processAdministrationDataListAction@@',
+    properties : [
+      {
+        name : 'label',
+        label : '@@processAdministration.label@@',
+        type : 'textfield'
+      },
+      {
+        name : 'confirmation',
+        label : '@@processAdministration.confirmationMessage@@',
+        type : 'textfield'
+      },
+      {
+        name : 'action',
+        label : '@@processAdministration.action@@',
+        type : 'selectbox',
+        required : 'true',
+        options : [
+          {
+            value : 'abort',
+            label : '@@processAdministration.abort@@'
+          },
+          {
+            value : 'complete',
+            label : '@@processAdministration.complete@@'
+          },
+          {
+            value : 'reevaluate',
+            label : '@@processAdministration.reevaluate@@'
+          },
+          {
+            value : 'migrate',
+            label : '@@processAdministration.migrate@@'
+          }
+        ]
+      }
+    ]
+  }
+]

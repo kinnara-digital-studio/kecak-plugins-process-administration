@@ -20,6 +20,7 @@ public class Activator implements BundleActivator {
         registrationList.add(context.registerService(ProcessMigrationVersionValidator.class.getName(), new ProcessMigrationVersionValidator(), null));
         registrationList.add(context.registerService(ProcessReassignmentUserviewMenu.class.getName(), new ProcessReassignmentUserviewMenu(), null));
         registrationList.add(context.registerService(ProcessOptionsBinder.class.getName(), new ProcessOptionsBinder(), null));
+        registrationList.add(context.registerService(ProcessAdministrationDataListAction.class.getName(), new ProcessAdministrationDataListAction(), null));
 
     }
 
