@@ -19,12 +19,16 @@
         required : 'true',
         options : [
           {
-            value : 'abort',
-            label : '@@processAdministration.abort@@'
-          },
-          {
             value : 'complete',
             label : '@@processAdministration.complete@@'
+          },
+          {
+            value : 'submit',
+            label : '@@processAdministration.submit@@'
+          },
+          {
+            value : 'abort',
+            label : '@@processAdministration.abort@@'
           },
           {
             value : 'reevaluate',
@@ -33,6 +37,42 @@
           {
             value : 'migrate',
             label : '@@processAdministration.migrate@@'
+          }
+        ]
+      },
+      {
+        name : 'workflowVariables',
+        label : '@@processAdministration.workflowVariables@@',
+        type : 'grid',
+        control_field : 'action',
+        control_value : 'complete',
+        columns : [
+          {
+            key : 'variable',
+            label : '@@processAdministration.variable@@',
+            required : 'true'
+          },
+          {
+            key : 'value',
+            label : '@@processAdministration.value@@'
+          }
+        ]
+      },
+      {
+        name : 'formFields',
+        label : '@@processAdministration.formFields@@',
+        type : 'grid',
+        control_field : 'action',
+        control_value : 'submit',
+        columns : [
+          {
+            key : 'field',
+            label : '@@processAdministration.field@@',
+            required : 'true'
+          },
+          {
+            key : 'value',
+            label : '@@processAdministration.value@@'
           }
         ]
       }
