@@ -176,7 +176,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(Objects::nonNull)
                     .map(WorkflowProcessLink::getProcessId)
                     .map(workflowManager::getRunningProcessById)
-                    .filter(p -> (p != null && p.getState().startsWith("open")))
+                    .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
                     .map(WorkflowProcess::getInstanceId)
                     .peek(pid -> LogUtil.info(getClassName(), "Aborting process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
@@ -188,7 +188,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(Objects::nonNull)
                     .map(WorkflowProcessLink::getProcessId)
                     .map(workflowManager::getRunningProcessById)
-                    .filter(p -> (p != null && p.getState().startsWith("open")))
+                    .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
                     .forEach(p -> {
                         String publishedProcessDefId = p.getId().replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
                         LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] to process def [" + publishedProcessDefId + "]");
@@ -223,7 +223,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(Objects::nonNull)
                     .map(WorkflowProcessLink::getProcessId)
                     .map(workflowManager::getRunningProcessById)
-                    .filter(p -> (p != null && p.getState().startsWith("open")))
+                    .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
                     .forEach(p -> {
                         String publishedProcessDefId = p.getId().replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
                         LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] to process def [" + publishedProcessDefId + "]");
@@ -288,11 +288,5 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             }
         }
         return null;
-    }
-
-    static class FormSubmissionException extends RuntimeException {
-        FormSubmissionException(String message) {
-            super(message);
-        }
     }
 }

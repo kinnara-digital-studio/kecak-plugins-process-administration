@@ -13,6 +13,7 @@ import org.joget.commons.util.LogUtil;
 import org.joget.workflow.model.WorkflowProcess;
 import org.joget.workflow.model.service.WorkflowManager;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
@@ -57,23 +58,16 @@ public class ProcessMigrationStoreBinder extends WorkflowFormBinder {
 
             LogUtil.info(getClassName(), "Updating running processes for app [" + appId + "] version [" + fromAppVersion + "] to [" + toAppVersion + "]");
 
-//            WorkflowUserManager workflowUserManager = (WorkflowUserManager) AppUtil.getApplicationContext().getBean("workflowUserManager");
-//            LogUtil.info(getClassName(), "Thread Username ["+workflowUserManager.getCurrentThreadUser()+"]");
-//            LogUtil.info(getClassName(), "Username ["+workflowUserManager.getCurrentUsername()+"]");
-//            workflowUserManager.setCurrentThreadUser(workflowUserManager.getCurrentUsername());
-
             // get App Definition
             AppDefinition appDefinitionFrom = appDefinitionDao.loadVersion(appId, fromAppVersion);
             AppDefinition appDefinitionTo = appDefinitionDao.loadVersion(appId, toAppVersion);
 
-            Collection<WorkflowProcess> runningProcessList = workflowManager.getRunningProcessList(appId, null, null, appDefinitionFrom.getPackageDefinition().getVersion().toString(), null, null, null, null)
-                    .stream()
-                    .collect(Collectors.toList());
+            Collection<WorkflowProcess> runningProcessList = new ArrayList<>(workflowManager.getRunningProcessList(appId, null, null, appDefinitionFrom.getPackageDefinition().getVersion().toString(), null, null, null, null));
 
             // get all processses for current app
             Collection<WorkflowProcess> processes = workflowManager.getProcessList(appId, appDefinitionTo.getPackageDefinition().getVersion().toString());
 
-            if (runningProcessList == null || runningProcessList.isEmpty()) {
+            if (runningProcessList.isEmpty()) {
                 LogUtil.warn(getClassName(), "No running processes to update for [" + appId + "] version [" + fromAppVersion + "]");
             } else if (processes == null || processes.isEmpty()) {
                 LogUtil.warn(getClassName(), "Target app [" + appId + "] version [" + toAppVersion + "] not found");
