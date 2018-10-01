@@ -162,11 +162,13 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             Arrays.stream(rowKeys)
                     .flatMap(id -> processLinkDao.getLinks(id).stream())
                     .filter(Objects::nonNull)
+
                     .filter(link -> {
                         WorkflowProcess wfProcess = workflowManager.getRunningProcessById(link.getProcessId());
                         return !SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState());
                     })
-                    .map(l -> workflowManager.getAssignmentByProcess(l.getProcessId()))
+                    .map(WorkflowProcessLink::getProcessId)
+                    .map(workflowManager::getAssignmentByProcess)
                     .filter(Objects::nonNull)
                     .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getActivityId() + "]"))
                     .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getActivityId()));
