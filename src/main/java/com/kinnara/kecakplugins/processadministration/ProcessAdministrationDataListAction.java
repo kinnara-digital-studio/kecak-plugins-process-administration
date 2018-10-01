@@ -229,7 +229,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .forEach(p -> {
                         String publishedProcessDefId = p.getId().replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
                         LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] to process def [" + publishedProcessDefId + "]");
-                        WorkflowProcessResult workflowProcessResult = workflowManager.processActivityStepBack(p.getInstanceId(), "");
+//                        WorkflowProcessResult workflowProcessResult = workflowManager.processActivityStepBack(p.getInstanceId(), "");
                     });
         } else {
             LogUtil.warn(getClassName(), "Action ["+getPropertyString("action")+"] is not supported yet");
