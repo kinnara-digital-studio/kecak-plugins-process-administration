@@ -98,7 +98,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         WorkflowProcess wfProcess = workflowManager.getRunningProcessById(link.getProcessId());
                         return !SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState());
                     })
-                    .map(l -> workflowManager.getAssignmentByProcess(l.getProcessId()))
+                    .map(WorkflowProcessLink::getProcessId)
+                    .map(workflowManager::getAssignmentByProcess)
                     .filter(Objects::nonNull)
                     .forEach(a -> {
                         if (!a.isAccepted()) {
@@ -126,8 +127,11 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         WorkflowProcess wfProcess = workflowManager.getRunningProcessById(link.getProcessId());
                         return !SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState());
                     })
+
+                    // this method makes sure that current assignment belongs to current user thread
                     .map(l -> workflowManager.getAssignmentByProcess(l.getProcessId()))
                     .filter(Objects::nonNull)
+
                     .forEach(a -> {
                         final FormData formData = new FormData();
 
@@ -160,18 +164,27 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     });
         } else if("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
             Arrays.stream(rowKeys)
+                    // get related processes
                     .flatMap(id -> processLinkDao.getLinks(id).stream())
                     .filter(Objects::nonNull)
-
-                    .filter(link -> {
-                        WorkflowProcess wfProcess = workflowManager.getRunningProcessById(link.getProcessId());
-                        return !SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState());
-                    })
                     .map(WorkflowProcessLink::getProcessId)
-                    .map(workflowManager::getAssignmentByProcess)
+                    .map(workflowManager::getRunningProcessById)
+
+                    // filter by running process
+                    .filter(process -> process.getState().startsWith(SharkConstants.STATEPREFIX_OPEN)/*!SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState())*/)
+                    .map(WorkflowProcess::getInstanceId)
+
+                    // get latest activity, assume only handle the latest one
+                    .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
                     .filter(Objects::nonNull)
-                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getActivityId() + "]"))
-                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getActivityId()));
+                    .flatMap(Collection::stream)
+
+                    // check status = open
+                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+
+                    // reevaluate process
+                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
+                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
         } else if("abort".equalsIgnoreCase(getPropertyString("action"))) {
             Arrays.stream(rowKeys)
                     .flatMap(id -> processLinkDao.getLinks(id).stream())
@@ -197,10 +210,23 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         WorkflowProcessResult workflowProcessResult = workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
 
                         // reevaluate after migration
-                        Stream.of(workflowManager.getAssignmentByProcess(workflowProcessResult.getProcess().getInstanceId()))
-                                .filter(Objects::nonNull)
-                                .peek(a -> LogUtil.info(getClassName(), "Re-evaluating process [" + a.getActivityId() + "]"))
-                                .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getActivityId()));
+                        if(workflowProcessResult != null) {
+                            Stream.of(workflowProcessResult)
+                                    .map(WorkflowProcessResult::getProcess)
+                                    .map(WorkflowProcess::getInstanceId)
+
+                                    // get latest activity, assume only handle the latest one
+                                    .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
+                                    .filter(Objects::nonNull)
+                                    .flatMap(Collection::stream)
+
+                                    // check status = open
+                                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+
+                                    // reevaluate process
+                                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
+                                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
+                        }
                     });
 
         } else if("prev".equalsIgnoreCase(getPropertyString("action"))) {
