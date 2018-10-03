@@ -189,9 +189,14 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             Arrays.stream(rowKeys)
                     .flatMap(id -> processLinkDao.getLinks(id).stream())
                     .filter(Objects::nonNull)
+
                     .map(WorkflowProcessLink::getProcessId)
+                    .filter(Objects::nonNull)
+
                     .map(workflowManager::getRunningProcessById)
-                    .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
+                    .filter(Objects::nonNull)
+                    .filter(p -> p.getState() != null && p.getState().startsWith("open"))
+
                     .map(WorkflowProcess::getInstanceId)
                     .peek(pid -> LogUtil.info(getClassName(), "Aborting process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
@@ -204,37 +209,41 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .map(WorkflowProcessLink::getProcessId)
                     .map(workflowManager::getRunningProcessById)
                     .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
-                    .forEach(p -> {
-                        final String currentProcessDefId = p.getId();
-                        final String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
+                    .map(p -> {
+                        String currentProcessDefId = p.getId();
+                        String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
 
-                        LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] from process def ["+currentProcessDefId+"] to [" + publishedProcessDefId + "]");
-                        WorkflowProcessResult workflowProcessResult = workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
+                        // check if target process is the same as current process
+                        if (currentProcessDefId.equals(publishedProcessDefId)) {
+                            // no need to migrate current process
+                            return null;
+                        }
 
-                        // reevaluate after migration
-                        Stream.of(workflowProcessResult)
-                                .filter(Objects::nonNull)
+                        LogUtil.info(getClassName(), "Migrating process instance [" + p.getInstanceId() + "] from process def [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
+                        return workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
+                    })
+                    .filter(Objects::nonNull)
 
-                                .map(WorkflowProcessResult::getProcess)
-                                .filter(Objects::nonNull)
+                    // get process from process result
+                    .map(WorkflowProcessResult::getProcess)
+                    .filter(Objects::nonNull)
 
-                                .map(WorkflowProcess::getInstanceId)
-                                .filter(Objects::nonNull)
+                    .map(WorkflowProcess::getInstanceId)
+                    .filter(Objects::nonNull)
 
-                                .peek(pid -> LogUtil.info(getClassName(), "New process instance [" + pid + "] is generated"))
+                    .peek(pid -> LogUtil.info(getClassName(), "New process instance [" + pid + "] is generated"))
 
-                                // get latest activity, assume only handle the latest one
-                                .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
-                                .filter(Objects::nonNull)
-                                .flatMap(Collection::stream)
+                    // get latest activity, assume only handle the latest one
+                    .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
 
-                                // check status = open
-                                .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+                    // check status = open
+                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
 
-                                // reevaluate process
-                                .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
-                                .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
-                    });
+                    // reevaluate process
+                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
+                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
 
         } else if("prev".equalsIgnoreCase(getPropertyString("action"))) {
             // TODO
