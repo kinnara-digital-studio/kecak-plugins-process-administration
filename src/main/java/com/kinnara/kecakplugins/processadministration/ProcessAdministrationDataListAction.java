@@ -210,23 +210,28 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         WorkflowProcessResult workflowProcessResult = workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
 
                         // reevaluate after migration
-                        if(workflowProcessResult != null) {
-                            Stream.of(workflowProcessResult)
-                                    .map(WorkflowProcessResult::getProcess)
-                                    .map(WorkflowProcess::getInstanceId)
+                        Stream.of(workflowProcessResult)
+                                .filter(Objects::nonNull)
 
-                                    // get latest activity, assume only handle the latest one
-                                    .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
-                                    .filter(Objects::nonNull)
-                                    .flatMap(Collection::stream)
+                                .map(WorkflowProcessResult::getProcess)
+                                .filter(Objects::nonNull)
 
-                                    // check status = open
-                                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+                                .map(WorkflowProcess::getInstanceId)
+                                .filter(Objects::nonNull)
 
-                                    // reevaluate process
-                                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
-                                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
-                        }
+                                .peek(pid -> LogUtil.info(getClassName(), "New process instance [" + pid + "] is generated"))
+
+                                // get latest activity, assume only handle the latest one
+                                .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
+                                .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
+
+                                // check status = open
+                                .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+
+                                // reevaluate process
+                                .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
+                                .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
                     });
 
         } else if("prev".equalsIgnoreCase(getPropertyString("action"))) {
