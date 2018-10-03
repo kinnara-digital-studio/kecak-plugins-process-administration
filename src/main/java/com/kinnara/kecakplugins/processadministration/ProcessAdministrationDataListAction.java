@@ -205,8 +205,10 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .map(workflowManager::getRunningProcessById)
                     .filter(p -> (p != null && p.getState() != null && p.getState().startsWith("open")))
                     .forEach(p -> {
-                        String publishedProcessDefId = p.getId().replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
-                        LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] to process def [" + publishedProcessDefId + "]");
+                        final String currentProcessDefId = p.getId();
+                        final String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
+
+                        LogUtil.info(getClassName(), "Migrating process instance ["+p.getInstanceId()+"] from process def ["+currentProcessDefId+"] to [" + publishedProcessDefId + "]");
                         WorkflowProcessResult workflowProcessResult = workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
 
                         // reevaluate after migration
