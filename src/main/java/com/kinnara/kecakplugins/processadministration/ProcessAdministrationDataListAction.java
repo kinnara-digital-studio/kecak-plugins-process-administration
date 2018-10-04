@@ -28,6 +28,7 @@ import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.context.ApplicationContext;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
@@ -158,7 +159,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         }
 
                         appService.completeAssignmentForm(form, a, formData, new HashMap<>()).getFormErrors().forEach((field, message) -> {
-                            LogUtil.error(getClassName(), null, "Error Submitting form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field+"] message [" + message + "]");
+                            LogUtil.error(getClassName(), null, "["+getPropertyString("action").toUpperCase()+"] Error form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field+"] message [" + message + "]");
                         });
                     });
         } else if("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
@@ -182,7 +183,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
 
                     // reevaluate process
-                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
+                    .peek(a -> LogUtil.info(getClassName(), "["+getPropertyString("action").toUpperCase()+"] assignment [" + a.getId() + "]"))
                     .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
         } else if("abort".equalsIgnoreCase(getPropertyString("action"))) {
             Arrays.stream(rowKeys)
@@ -197,7 +198,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(p -> p.getState() != null && p.getState().startsWith("open"))
 
                     .map(WorkflowProcess::getInstanceId)
-                    .peek(pid -> LogUtil.info(getClassName(), "Aborting process [" + pid + "]"))
+                    .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
         } else if("migrate".equalsIgnoreCase(getPropertyString("action"))) {
             AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
@@ -218,7 +219,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                             return null;
                         }
 
-                        LogUtil.info(getClassName(), "[" + getPropertyString("action") + "] Migrating process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
+                        LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] Migrating process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
                         return workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
                     })
                     .filter(Objects::nonNull)
@@ -230,7 +231,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .map(WorkflowProcess::getInstanceId)
                     .filter(Objects::nonNull)
 
-                    .peek(pid -> LogUtil.info(getClassName(), "["+getPropertyString("action")+"] New process [" + pid + "]"))
+                    .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] New process [" + pid + "]"))
 
                     // get latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
