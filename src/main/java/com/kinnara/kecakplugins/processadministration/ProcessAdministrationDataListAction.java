@@ -218,7 +218,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                             return null;
                         }
 
-                        LogUtil.info(getClassName(), "Migrating process instance [" + p.getInstanceId() + "] from process def [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
+                        LogUtil.info(getClassName(), "[" + getPropertyString("action") + "] Migrating process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
                         return workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
                     })
                     .filter(Objects::nonNull)
@@ -230,7 +230,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .map(WorkflowProcess::getInstanceId)
                     .filter(Objects::nonNull)
 
-                    .peek(pid -> LogUtil.info(getClassName(), "New process instance [" + pid + "] is generated"))
+                    .peek(pid -> LogUtil.info(getClassName(), "["+getPropertyString("action")+"] New process [" + pid + "]"))
 
                     // get latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
@@ -241,7 +241,6 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
 
                     // reevaluate process
-                    .peek(a -> LogUtil.info(getClassName(), "Re-evaluating assignment [" + a.getId() + "]"))
                     .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
 
         } else if("prev".equalsIgnoreCase(getPropertyString("action"))) {
