@@ -1,0 +1,33 @@
+[
+  {
+    title : 'Edit @@processAdministration.processAdministrationTool@@',
+    properties : [
+      {
+        name : 'processId',
+        label : '@@processAdministration.processId@@',
+        description : '@@processAdministration.processId.description@@',
+        type : 'textfield'
+      },
+      {
+        name : 'action',
+        label : '@@processAdministration.action@@',
+        type : 'selectbox',
+        required : 'true',
+        options : [
+          {
+            value : 'abort',
+            label : '@@processAdministration.abort@@'
+          },
+          {
+            value : 'reevaluate',
+            label : '@@processAdministration.reevaluate@@'
+          },
+          {
+            value : 'migrate',
+            label : '@@processAdministration.migrate@@'
+          }
+        ]
+      }
+    ]
+  }
+]
