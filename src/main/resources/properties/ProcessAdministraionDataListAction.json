@@ -37,6 +37,10 @@
           {
             value : 'migrate',
             label : '@@processAdministration.migrate@@'
+          },
+          {
+            value : 'prev',
+            label : '@@processAdministration.prev@@'
           }
         ]
       },
@@ -75,6 +79,27 @@
             label : '@@processAdministration.value@@'
           }
         ]
+      },
+      {
+        name : 'forceAction',
+        label : '@@processAdministration.forceAction@@',
+        type : 'checkbox',
+        control_field : 'action',
+        control_value : 'migrate',
+        options : [
+          {
+            value : 'true',
+            label : ''
+          }
+        ]
+      },
+      {
+        name : 'stepsVariable',
+        label : '@@processAdministration.stepsVariable@@',
+        description : '@@processAdministration.stepsVariable.desc@@',
+        type : 'textfield',
+        control_field : 'action',
+        regex_validation : '^[0-9]+$'
       }
     ]
   }
