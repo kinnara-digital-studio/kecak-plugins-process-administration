@@ -1,32 +1,13 @@
 [
   {
-    title : 'Edit @@processAdministration.processAdministrationTool@@',
+    title : 'Edit @@processAdministration.processAdministrationApi@@',
     properties : [
       {
-        name : 'processId',
-        label : '@@processAdministration.processId@@',
-        description : '@@processAdministration.processId.description@@',
-        type : 'textfield'
-      },
-      {
-        name : 'action',
-        label : '@@processAdministration.action@@',
-        type : 'selectbox',
-        required : 'true',
-        options : [
-          {
-            value : 'abort',
-            label : '@@processAdministration.abort@@'
-          },
-          {
-            value : 'reevaluate',
-            label : '@@processAdministration.reevaluate@@'
-          },
-          {
-            value : 'migrate',
-            label : '@@processAdministration.migrate@@'
-          }
-        ]
+        name : 'permission',
+        label : '@@processAdministration.permission@@',
+        type : 'elementselect',
+        options_ajax : '[CONTEXT_PATH]/web/property/json/getElements?classname=org.joget.apps.userview.model.UserviewPermission',
+        url : '[CONTEXT_PATH]/web/property/json[APP_PATH]/getPropertyOptions'
       }
     ]
   }

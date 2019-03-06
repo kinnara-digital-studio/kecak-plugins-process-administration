@@ -2,8 +2,13 @@ package com.kinnara.kecakplugins.processadministration;
 
 import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.userview.model.UserviewPermission;
 import org.joget.commons.util.LogUtil;
-import org.joget.plugin.base.ExtDefaultPlugin;
+import org.joget.directory.model.User;
+import org.joget.directory.model.service.DirectoryManager;
+import org.joget.plugin.base.DefaultApplicationPlugin;
+import org.joget.plugin.base.Plugin;
+import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.plugin.property.model.PropertyEditable;
 import org.joget.workflow.model.WorkflowProcessLink;
@@ -31,7 +36,8 @@ import java.util.stream.Stream;
  * @author aristo
  *
  */
-public class ProcessAdministrationApi extends ExtDefaultPlugin implements PluginWebSupport, PropertyEditable {
+//public class ProcessAdministrationApi extends ExtDefaultPlugin implements PluginWebSupport, PropertyEditable {
+public class ProcessAdministrationApi extends DefaultApplicationPlugin implements PluginWebSupport {
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -48,9 +54,10 @@ public class ProcessAdministrationApi extends ExtDefaultPlugin implements Plugin
                 throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Only accept POST method");
             }
 
+            UserviewPermission permission = generatePermission();
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUserManager.ROLE_ADMIN);
-            if (!isAdmin) {
-                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "Current user ["+ WorkflowUtil.getCurrentUsername() +"] is not admin");
+            if((permission == null && !isAdmin) || (permission != null &&permission.isAuthorize())) {
+                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "Current user ["+ WorkflowUtil.getCurrentUsername() +"] is not authorized");
             }
 
             String loginAs = request.getParameter("loginAs");
@@ -153,6 +160,34 @@ public class ProcessAdministrationApi extends ExtDefaultPlugin implements Plugin
 
     @Override
     public String getPropertyOptions() {
+        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationApi.json", null, false, "/messages/ProcessAdministration");
+    }
+
+    @Override
+    public Object execute(Map props) {
         return null;
+    }
+
+    private UserviewPermission generatePermission() {
+        ApplicationContext applicationContext = AppUtil.getApplicationContext();
+        DirectoryManager directoryManager = (DirectoryManager) applicationContext.getBean("directoryManager");
+
+        Map<String, Object> permission = (Map<String, Object>)getProperty("permission");
+        if(permission == null)
+            return null;
+
+        String className = (String) permission.get("className");
+        Map<String, Object> properties = (Map<String, Object>)permission.get("properties");
+
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        Plugin plugin = pluginManager.getPlugin(className);
+        if(properties != null)
+            ((PropertyEditable)plugin).setProperties(properties);
+
+        User user = directoryManager.getUserByUsername(WorkflowUtil.getCurrentUsername());
+        if(user != null)
+            ((UserviewPermission)plugin).setCurrentUser(user);
+
+        return (UserviewPermission) plugin;
     }
 }
