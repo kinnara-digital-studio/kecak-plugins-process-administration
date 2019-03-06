@@ -1,16 +1,16 @@
 package com.kinnara.kecakplugins.processadministration;
 
 import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
-import org.enhydra.shark.api.common.SharkConstants;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.plugin.base.ExtDefaultPlugin;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.plugin.property.model.PropertyEditable;
-import org.joget.workflow.model.WorkflowProcess;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
+import org.joget.workflow.model.service.WorkflowUserManager;
+import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,28 +35,31 @@ public class ProcessAdministrationApi extends ExtDefaultPlugin implements Plugin
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String method = request.getMethod();
-        String action = request.getParameter("action");
-
         ApplicationContext appContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
         WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
+        WorkflowUserManager workflowUserManager = (WorkflowUserManager) appContext.getBean("workflowUserManager");
+
+        String method = request.getMethod();
+        String action = request.getParameter("action");
 
         try {
-            if(!method.equalsIgnoreCase("POST"))
+            if(!method.equalsIgnoreCase("POST")) {
                 throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Only accept POST method");
+            }
+
+            boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUserManager.ROLE_ADMIN);
+            if (!isAdmin) {
+                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "Current user ["+ WorkflowUtil.getCurrentUsername() +"] is not admin");
+            }
+
+            String loginAs = request.getParameter("loginAs");
+            if(loginAs != null && !loginAs.isEmpty()) {
+                LogUtil.info(getClassName(), "Login As [" + loginAs + "]");
+                workflowUserManager.setCurrentThreadUser(loginAs);
+            }
 
             if("complete".equalsIgnoreCase(action)) {
-//                String appId = request.getParameter("appId");
-//                if(appId == null || appId.isEmpty()) {
-//                    throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Requires parameter [appId]");
-//                }
-//
-//                String appVersion = request.getParameter("appVersion");
-//                if(appVersion == null || appVersion.isEmpty()) {
-//                    throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Requires parameter [appVersion]");
-//                }
-
                 String[] processIds = request.getParameterValues("processId");
                 if(processIds == null || processIds.length == 0) {
                     throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Requires parameter [processId]");
@@ -71,15 +74,11 @@ public class ProcessAdministrationApi extends ExtDefaultPlugin implements Plugin
                     final JSONArray responseBody = new JSONArray();
                     Stream.of(processIds)
                             .flatMap(pid -> processLinkDao.getLinks(pid).stream())
-                            .filter(Objects::nonNull)
-                            .filter(link -> {
-                                WorkflowProcess wfProcess = workflowManager.getRunningProcessById(link.getProcessId());
-                                return !SharkConstants.STATE_CLOSED_ABORTED.equals(wfProcess.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(wfProcess.getState());
-                            })
                             .map(WorkflowProcessLink::getProcessId)
                             .map(workflowManager::getAssignmentByProcess)
                             .filter(Objects::nonNull)
                             .forEach(a -> {
+                                LogUtil.info(getClassName(), "Process ID ["+a.getProcessId()+"] assignment ID ["+a.getActivityId()+"]");
                                 if (!a.isAccepted()) {
                                     workflowManager.assignmentAccept(a.getActivityId());
                                 }
