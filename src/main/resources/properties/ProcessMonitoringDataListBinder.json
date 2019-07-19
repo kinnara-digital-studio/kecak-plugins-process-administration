@@ -1,0 +1,15 @@
+[
+  {
+    title: 'Configure @@processAdministration.processMonitoringDataListBinder.title@@',
+    properties:[
+      {
+        name : 'processDefId',
+        label : '@@processAdministration.process@@',
+        type : 'selectbox',
+        required : 'True',
+        options_ajax : '[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/org.joget.apps.userview.lib.RunProcess/service?action=getOptions'
+      }
+    ]
+  }
+]
+

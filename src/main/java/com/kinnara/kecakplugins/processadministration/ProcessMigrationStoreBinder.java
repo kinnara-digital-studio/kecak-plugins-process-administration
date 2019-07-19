@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public class ProcessMigrationStoreBinder extends WorkflowFormBinder {
     @Override
     public String getName() {
-        return AppPluginUtil.getMessage("processAdministration.processMigrationStoreBinder", getClassName(), "/messages/ProcessAdministration");
+        return "Process Admin - Process Migration Store Binder";
     }
 
     @Override

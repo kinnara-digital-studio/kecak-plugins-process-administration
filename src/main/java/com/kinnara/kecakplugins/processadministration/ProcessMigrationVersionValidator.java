@@ -25,7 +25,7 @@ public class ProcessMigrationVersionValidator extends FormValidator {
 
     @Override
     public String getName() {
-        return AppPluginUtil.getMessage("processAdministration.processMigrationVersionValidator", getClassName(), "/messages/ProcessAdministration");
+        return "Process Admin - Process Migration Version Validator";
     }
 
     @Override

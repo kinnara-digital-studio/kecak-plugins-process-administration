@@ -6,7 +6,6 @@ import org.joget.apps.app.dao.FormDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.FormDefinition;
 import org.joget.apps.app.model.PackageActivityForm;
-import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
@@ -231,6 +230,10 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .forEach(a -> {
                         workflowManager.reevaluateAssignmentsForActivity(a.getId());
                     });
+        } else if ("viewGraph".equalsIgnoreCase(getPropertyString("action"))) {
+            getRunningProcess(rowKeys).stream().map(WorkflowProcess::getInstanceId).forEach((p) -> {
+                result.setUrl("/web/console/monitor/process/graph/" + p);
+            });
         } else {
             LogUtil.warn(getClassName(), "Action ["+getPropertyString("action")+"] is not supported yet");
         }
@@ -239,7 +242,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public String getName() {
-        return AppPluginUtil.getMessage("processAdministration.processAdministrationDataListAction", getClassName(), "/messages/ProcessAdministration");
+        return "Process Admin";
     }
 
     @Override
@@ -264,7 +267,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public String getPropertyOptions() {
-        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministraionDataListAction.json",null, false, "/messages/ProcessAdministration");
+        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationDataListAction.json",null, false, "/messages/ProcessAdministration");
     }
 
     private Form generateForm(AppDefinition appDef, String formDefId) {

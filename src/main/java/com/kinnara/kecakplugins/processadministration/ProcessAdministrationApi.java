@@ -135,7 +135,7 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
 
     @Override
     public String getName() {
-        return "Process Administration API";
+        return "Process Admin - JSON API";
     }
 
     @Override

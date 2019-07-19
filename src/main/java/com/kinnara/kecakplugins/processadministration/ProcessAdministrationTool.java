@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 public class ProcessAdministrationTool extends DefaultApplicationPlugin {
     @Override
     public String getName() {
-        return AppPluginUtil.getMessage("processAdministration.processAdministrationTool", getClassName(), "/messages/ProcessAdministration");
+        return "Process Admin - Process Administration Tool";
     }
 
     @Override

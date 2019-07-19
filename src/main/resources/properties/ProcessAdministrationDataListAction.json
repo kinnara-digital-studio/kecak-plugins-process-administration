@@ -41,6 +41,10 @@
           {
             value : 'prev',
             label : '@@processAdministration.prev@@'
+          },
+          {
+            value : 'viewGraph',
+            label : '@@processAdministration.viewGraph@@'
           }
         ]
       },

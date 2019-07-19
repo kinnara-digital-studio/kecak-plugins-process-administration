@@ -201,7 +201,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
     }
 
     public String getName() {
-        return AppPluginUtil.getMessage("processAdministration.processReassignmentUserviewMenu", getClassName(), "/messages/ProcessAdministration");
+        return "Process Reassingment";
     }
 
     public String getVersion() {

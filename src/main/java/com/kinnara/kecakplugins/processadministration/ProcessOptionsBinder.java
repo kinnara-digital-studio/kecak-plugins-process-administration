@@ -56,9 +56,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public String getName() {
-        String message = "/messages/ProcessAdministration";
-        return AppPluginUtil.getMessage("processAdministration.processAdmin", getClassName(), message)
-                + " - " + AppPluginUtil.getMessage("processAdministration.processOptionsBinder", getClassName(), message);
+        return "Process Admin - Process Options Binder";
     }
 
     @Override
