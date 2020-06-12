@@ -1,30 +1,31 @@
 [
   {
-    title : 'Edit @@processAdministration.processAdministrationTool@@',
-    properties : [
+    "title" : "Edit @@processAdministration.processAdministrationTool@@",
+    "properties" : [
       {
-        name : 'processId',
-        label : '@@processAdministration.processId@@',
-        description : '@@processAdministration.processId.description@@',
-        type : 'textfield'
+        "name" : "processId",
+        "label" : "@@userview.datalistinboxmenu.process@@",
+        "type" : "selectbox",
+        "required" : "false",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getProcesses"
       },
       {
-        name : 'action',
-        label : '@@processAdministration.action@@',
-        type : 'selectbox',
-        required : 'true',
-        options : [
+        "name" : "action",
+        "label" : "@@processAdministration.action@@",
+        "type" : "selectbox",
+        "required" : "true",
+        "options" : [
           {
-            value : 'abort',
-            label : '@@processAdministration.abort@@'
+            "value" : "abort",
+            "label" : "@@processAdministration.abort@@"
           },
           {
-            value : 'reevaluate',
-            label : '@@processAdministration.reevaluate@@'
+            "value" : "reevaluate",
+            "label" : "@@processAdministration.reevaluate@@"
           },
           {
-            value : 'migrate',
-            label : '@@processAdministration.migrate@@'
+            "value" : "migrate",
+            "label" : "@@processAdministration.migrate@@"
           }
         ]
       }
