@@ -25,7 +25,7 @@ public class ProcessMigrationVersionValidator extends FormValidator {
 
     @Override
     public String getName() {
-        return "Process Admin - Process Migration Version Validator";
+        return getClass().getName();
     }
 
     @Override
@@ -40,7 +40,7 @@ public class ProcessMigrationVersionValidator extends FormValidator {
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - Process Migration Version Validator";
     }
 
     @Override

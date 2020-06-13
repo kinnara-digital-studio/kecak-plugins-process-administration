@@ -36,7 +36,7 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
 
     @Override
     public String getName() {
-        return "Process Admin - App Version Options Binder";
+        return getClass().getName();
     }
 
     @Override
@@ -51,7 +51,7 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - App Version Options Binder";
     }
 
     @Override

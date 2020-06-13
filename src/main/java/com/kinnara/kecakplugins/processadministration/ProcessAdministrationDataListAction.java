@@ -242,7 +242,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public String getName() {
-        return "Process Admin";
+        return getClass().getName();
     }
 
     @Override
@@ -257,7 +257,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin";
     }
 
     @Override

@@ -89,7 +89,7 @@ public class ProcessMonitoringDataListBinder extends DataListBinderDefault {
 
     @Override
     public String getName() {
-        return "Process Admin - Process Monitoring DataList Binder";
+        return getClass().getName();
     }
 
     @Override
@@ -104,7 +104,7 @@ public class ProcessMonitoringDataListBinder extends DataListBinderDefault {
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - Process Monitoring DataList Binder";
     }
 
     @Override

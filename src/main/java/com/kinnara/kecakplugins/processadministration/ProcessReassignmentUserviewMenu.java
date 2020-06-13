@@ -201,7 +201,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
     }
 
     public String getName() {
-        return "Process Reassingment";
+        return getClass().getName();
     }
 
     public String getVersion() {
@@ -213,7 +213,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
     }
 
     public String getLabel() {
-        return getName();
+        return "Process Reassingment";
     }
 
     public String getClassName() {

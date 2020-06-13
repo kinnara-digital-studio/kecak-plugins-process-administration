@@ -20,12 +20,12 @@ import java.util.stream.Collectors;
 public class ProcessMigrationStoreBinder extends WorkflowFormBinder {
     @Override
     public String getName() {
-        return "Process Admin - Process Migration Store Binder";
+        return getClass().getName();
     }
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - Process Migration Store Binder";
     }
 
     @Override

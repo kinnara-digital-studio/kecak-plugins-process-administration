@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 public class ProcessAdministrationTool extends DefaultApplicationPlugin {
     @Override
     public String getName() {
-        return "Process Admin - Process Administration Tool";
+        return getClass().getName();
     }
 
     @Override
@@ -122,7 +122,7 @@ public class ProcessAdministrationTool extends DefaultApplicationPlugin {
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - Administration Tool";
     }
 
     @Override

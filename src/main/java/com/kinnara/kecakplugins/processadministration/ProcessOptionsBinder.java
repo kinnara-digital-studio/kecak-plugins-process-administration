@@ -56,7 +56,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public String getName() {
-        return "Process Admin - Process Options Binder";
+        return getClass().getName();
     }
 
     @Override
@@ -71,7 +71,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public String getLabel() {
-        return getName();
+        return "Process Admin - Process Options Binder";
     }
 
     @Override
