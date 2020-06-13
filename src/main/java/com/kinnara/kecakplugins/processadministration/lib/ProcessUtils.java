@@ -1,6 +1,5 @@
 package com.kinnara.kecakplugins.processadministration.lib;
 
-import EnhydraShark.App;
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
@@ -9,22 +8,39 @@ import org.joget.commons.util.LogUtil;
 import org.joget.directory.dao.UserDao;
 import org.joget.directory.model.User;
 import org.joget.workflow.model.WorkflowAssignment;
-import org.joget.workflow.model.WorkflowProcess;
+import org.joget.workflow.model.WorkflowProcessLink;
+import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.shark.model.dao.WorkflowAssignmentDao;
 import org.springframework.context.ApplicationContext;
+import sun.rmi.runtime.Log;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface ProcessUtils {
+
+    /**
+     * Get latest process ID
+     *
+     * @param processId
+     * @return
+     */
+    @Nonnull
+    default String getLatestProcessId(@Nonnull String processId) {
+        WorkflowProcessLinkDao workflowProcessLinkDao = (WorkflowProcessLinkDao) AppUtil.getApplicationContext().getBean("workflowProcessLinkDao");
+        return Optional.ofNullable(workflowProcessLinkDao.getLinks(processId))
+                .map(Collection::stream)
+                .orElseGet(Stream::empty)
+                .reduce((l1, l2) -> l2)
+                .map(WorkflowProcessLink::getProcessId)
+                .orElse(processId);
+    }
+
     /**
      * Get assignment object by process ID
      *
@@ -92,6 +108,14 @@ public interface ProcessUtils {
      *            * *
      *             *
      */
+
+    default <T> UnaryOperator<T> peek(Consumer<T> consumer) {
+        Objects.requireNonNull(consumer);
+        return (T t) -> {
+            consumer.accept(t);
+            return t;
+        };
+    }
 
     default <T, R, E extends Exception> Function<T, R> throwableFunction(ThrowableFunction<T, R, E> throwableFunction) {
         return throwableFunction;
@@ -232,4 +256,5 @@ public interface ProcessUtils {
 
         void acceptThrowable(T t, U u) throws E;
     }
+
 }

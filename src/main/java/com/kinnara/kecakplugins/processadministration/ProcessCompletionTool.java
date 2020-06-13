@@ -2,6 +2,7 @@ package com.kinnara.kecakplugins.processadministration;
 
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
 import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
+import org.enhydra.shark.api.client.wfmodel.InvalidResource;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
 import org.joget.apps.app.service.AppService;
@@ -9,10 +10,8 @@ import org.joget.apps.app.service.AppUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.plugin.base.DefaultApplicationPlugin;
 import org.joget.plugin.base.PluginWebSupport;
-import org.joget.workflow.model.WorkflowActivity;
-import org.joget.workflow.model.WorkflowAssignment;
-import org.joget.workflow.model.WorkflowProcess;
-import org.joget.workflow.model.WorkflowVariable;
+import org.joget.workflow.model.*;
+import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -63,7 +62,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
         return null;
     }
 
-    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap) throws ProcessException {
+    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap) throws ProcessException, InvalidResource {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
@@ -176,19 +175,20 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
      * @param props
      * @return
      */
+    @Nonnull
     private String getProcessInstanceId(Map props) {
         return String.valueOf(props.get("processInstanceId"));
     }
 
     private String getAssignmentProcessId(Map props) throws ProcessException {
-        String processInstanceId = getProcessInstanceId(props);
-        if(processInstanceId.isEmpty()) {
+        String processInstanceId = getLatestProcessId(getProcessInstanceId(props));
+        if(!processInstanceId.isEmpty()) {
+            return processInstanceId;
+        } else {
             WorkflowAssignment workflowAssignment = (WorkflowAssignment) props.get("workflowAssignment");
             return Optional.ofNullable(workflowAssignment)
                     .map(WorkflowAssignment::getProcessId)
                     .orElseThrow(() -> new ProcessException("Assignment for current process instance"));
-        } else {
-            return getProcessInstanceId(props);
         }
     }
 
