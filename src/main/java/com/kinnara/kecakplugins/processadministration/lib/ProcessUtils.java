@@ -3,7 +3,10 @@ package com.kinnara.kecakplugins.processadministration.lib;
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
+import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.form.model.Element;
+import org.joget.apps.form.model.FormData;
 import org.joget.commons.util.LogUtil;
 import org.joget.directory.dao.UserDao;
 import org.joget.directory.model.User;
@@ -13,7 +16,6 @@ import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.shark.model.dao.WorkflowAssignmentDao;
 import org.springframework.context.ApplicationContext;
-import sun.rmi.runtime.Log;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,6 +25,49 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface ProcessUtils {
+
+    /**
+     * Attempt to get app definition using activity ID or process ID
+     *
+     * @param assignment
+     * @return
+     */
+    @Nonnull
+    default AppDefinition getApplicationDefinition(@Nonnull WorkflowAssignment assignment) throws ProcessException {
+        ApplicationContext applicationContext = AppUtil.getApplicationContext();
+        AppService appService = (AppService) applicationContext.getBean("appService");
+
+        final String activityId = assignment.getActivityId();
+        final String processId = assignment.getProcessId();
+
+        AppDefinition appDefinition =  Optional.of(activityId)
+                .map(appService::getAppDefinitionForWorkflowActivity)
+                .orElseGet(() -> Optional.of(processId)
+                        .map(appService::getAppDefinitionForWorkflowProcess)
+                        .orElse(null));
+
+        return Optional.ofNullable(appDefinition)
+                .orElseThrow(() -> new ProcessException("Application definition for assignment [" + activityId + "] process [" + processId + "] not found"));
+    }
+
+    /**
+     * Stream element children
+     *
+     * @param element
+     * @return
+     */
+    @Nonnull
+    default Stream<Element> elementStream(@Nonnull Element element, FormData formData) {
+        if(!element.isAuthorize(formData)) {
+            return Stream.empty();
+        }
+
+        Stream<Element> stream = Stream.of(element);
+        for (Element child : element.getChildren()) {
+            stream = Stream.concat(stream, elementStream(child, formData));
+        }
+        return stream;
+    }
 
     /**
      * Get latest process ID
@@ -121,16 +166,24 @@ public interface ProcessUtils {
         return throwableFunction;
     }
 
-    default <T, R, E extends Exception> Function<T, R> throwable(ThrowableFunction<T, R, E> throwableFunction, Function<E, R> failover) {
+    default <T, R, E extends Exception> Function<T, R> throwableFunction(ThrowableFunction<T, R, E> throwableFunction, Function<E, R> failover) {
         return throwableFunction.onException(failover);
     }
 
-    default <T, E extends Exception> ThrowableConsumer<T, E> throwable(ThrowableConsumer<T, E> throwableConsumer) {
+    default <T, E extends Exception> ThrowableConsumer<T, E> throwableConsumer(ThrowableConsumer<T, E> throwableConsumer) {
         return throwableConsumer;
     }
 
-    default <T, U, E extends Exception> BiConsumer<T, U> throwable(ThrowableBiConsumer<T, U, E> throwableBiConsumer) {
+    default <T, E extends Exception> ThrowableConsumer<T, E> throwableConsumer(ThrowableConsumer<T, E> throwableConsumer, Consumer<E> failover) {
+        return throwableConsumer.onException(failover);
+    }
+
+    default <T, U, E extends Exception> BiConsumer<T, U> throwableConsumer(ThrowableBiConsumer<T, U, E> throwableBiConsumer) {
         return throwableBiConsumer;
+    }
+
+    default <T, U, E extends Exception> BiConsumer<T, U> throwableConsumer(ThrowableBiConsumer<T, U, E> throwableBiConsumer, Consumer<E> failover) {
+        return throwableBiConsumer.onException(failover);
     }
 
     default <T, E extends Exception> Predicate<T> throwableTest(ThrowablePredicate<T, E> throwablePredicate){
@@ -246,12 +299,18 @@ public interface ProcessUtils {
             try {
                 acceptThrowable(t, u);
             } catch (Exception e) {
-                onException((E) e);
+                LogUtil.error(ThrowableFunction.class.getName(), e, e.getMessage());
             }
         }
 
-        default void onException(E e) {
-            LogUtil.error(ThrowableFunction.class.getName(), e, e.getMessage());
+        default ThrowableBiConsumer<T, U, E> onException(Consumer<E> onException) {
+            return (T t, U u) -> {
+                try {
+                    acceptThrowable(t, u);
+                } catch (Exception e) {
+                    onException.accept((E) e);
+                }
+            };
         }
 
         void acceptThrowable(T t, U u) throws E;

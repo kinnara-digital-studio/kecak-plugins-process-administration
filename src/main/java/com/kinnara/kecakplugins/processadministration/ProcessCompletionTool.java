@@ -2,16 +2,18 @@ package com.kinnara.kecakplugins.processadministration;
 
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
 import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
-import org.enhydra.shark.api.client.wfmodel.InvalidResource;
 import org.joget.apps.app.model.AppDefinition;
+import org.joget.apps.app.model.PackageActivityForm;
 import org.joget.apps.app.model.PackageDefinition;
 import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
+import org.joget.apps.form.model.Form;
+import org.joget.apps.form.model.FormData;
+import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.plugin.base.DefaultApplicationPlugin;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.*;
-import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -55,17 +57,19 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
         try {
             String currentUser = getAsUser(props);
             getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), isForce(props) ? null : currentUser)
-                    .forEach(throwable(assignment -> assignmentComplete(props, assignment, getWorkflowVariables(props))));
+                    .forEach(throwableConsumer(assignment -> assignmentComplete(props, assignment, getWorkflowVariables(props)), (ProcessException e) -> LogUtil.error(getClass().getName(), e, e.getMessage())));
         } catch (ProcessException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
         }
         return null;
     }
 
-    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap) throws ProcessException, InvalidResource {
+    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
+        AppDefinition appDefinition = getApplicationDefinition(assignment);
+        AppService appService = (AppService) applicationContext.getBean("appService");
 
         String username = getAsUser(properties);
         if(isForce(properties)) {
@@ -73,15 +77,44 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             workflowManager.assignmentReassign(assignment.getProcessDefId(), assignment.getProcessId(), assignment.getActivityId(), username, assignment.getAssigneeName());
         }
 
-        workflowUserManager.setCurrentThreadUser(username);
-        if (!assignment.isAccepted()) {
-            workflowManager.assignmentAccept(assignment.getActivityId());
-        }
-
         LogUtil.info(getClass().getName(), "Completing assignment [" + assignment.getActivityId() + "]");
-        workflowManager.assignmentComplete(assignment.getActivityId(), variableMap);
 
-        //TODO : save data to form
+        workflowUserManager.setCurrentThreadUser(username);
+
+        final FormData formData = new FormData();
+        Form form = Optional.ofNullable(appService.viewAssignmentForm(appDefinition, assignment, formData, ""))
+                .map(PackageActivityForm::getForm)
+                .orElse(null);
+
+        if(form == null) {
+            if (!assignment.isAccepted()) {
+                workflowManager.assignmentAccept(assignment.getActivityId());
+            }
+            workflowManager.assignmentComplete(assignment.getActivityId(), variableMap);
+        } else {
+            elementStream(form, formData)
+                    .filter(e -> variableMap.containsKey(e.getPropertyString("workflowVariable")))
+                    .forEach(element -> {
+                        String variableName = element.getPropertyString("workflowVariable");
+                        String parameterName = FormUtil.getElementParameterName(element);
+                        String parameterValue = variableMap.get(variableName);
+
+                        formData.addRequestParameterValues(parameterName, new String[]{parameterValue});
+                    });
+
+            FormData resultFormData = appService.completeAssignmentForm(form, assignment, formData, variableMap);
+            String errorMessage = Optional.ofNullable(resultFormData)
+                    .map(FormData::getFileErrors)
+                    .map(Map::entrySet)
+                    .map(Collection::stream)
+                    .orElseGet(Stream::empty)
+                    .map(e -> String.format("Field [%s] message [%s]", e.getKey(), e.getValue()))
+                    .collect(Collectors.joining(", "));
+
+            if (!errorMessage.isEmpty()) {
+                throw new ProcessException(errorMessage);
+            }
+        }
     }
 
     @Override
