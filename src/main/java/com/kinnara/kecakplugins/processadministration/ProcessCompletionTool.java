@@ -9,11 +9,16 @@ import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
+import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.LogUtil;
+import org.joget.directory.model.User;
 import org.joget.plugin.base.DefaultApplicationPlugin;
 import org.joget.plugin.base.PluginWebSupport;
-import org.joget.workflow.model.*;
+import org.joget.workflow.model.WorkflowActivity;
+import org.joget.workflow.model.WorkflowAssignment;
+import org.joget.workflow.model.WorkflowProcess;
+import org.joget.workflow.model.WorkflowVariable;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
@@ -55,31 +60,25 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     @Override
     public Object execute(Map props) {
         try {
-            String currentUser = getAsUser(props);
-            getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), isForce(props) ? null : currentUser)
-                    .forEach(throwableConsumer(assignment -> assignmentComplete(props, assignment, getWorkflowVariables(props)), (ProcessException e) -> LogUtil.error(getClass().getName(), e, e.getMessage())));
+            getAsUser(props)
+                    .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), currentUser)
+                    .forEach(throwableConsumer(assignment -> assignmentComplete(props, assignment, getWorkflowVariables(props), currentUser)))));
         } catch (ProcessException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
         }
         return null;
     }
 
-    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap) throws ProcessException {
+    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap, String username) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
+        FormService formService = (FormService) applicationContext.getBean("formService");
         AppDefinition appDefinition = getApplicationDefinition(assignment);
         AppService appService = (AppService) applicationContext.getBean("appService");
 
-        String username = getAsUser(properties);
-        if(isForce(properties)) {
-            workflowUserManager.setCurrentThreadUser(assignment.getAssigneeName());
-            workflowManager.assignmentReassign(assignment.getProcessDefId(), assignment.getProcessId(), assignment.getActivityId(), username, assignment.getAssigneeName());
-        }
-
-        LogUtil.info(getClass().getName(), "Completing assignment [" + assignment.getActivityId() + "]");
-
         workflowUserManager.setCurrentThreadUser(username);
+        LogUtil.info(getClass().getName(), "Completing assignment [" + assignment.getActivityId() + "] user [" + username + "]");
 
         final FormData formData = new FormData();
         Form form = Optional.ofNullable(appService.viewAssignmentForm(appDefinition, assignment, formData, ""))
@@ -102,18 +101,22 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                         formData.addRequestParameterValues(parameterName, new String[]{parameterValue});
                     });
 
-            FormData resultFormData = appService.completeAssignmentForm(form, assignment, formData, variableMap);
-            String errorMessage = Optional.ofNullable(resultFormData)
-                    .map(FormData::getFileErrors)
+
+            FormData validationFormData = formService.validateFormData(form, formData);
+            String errorMessage = Optional.ofNullable(validationFormData)
+                    .map(FormData::getFormErrors)
                     .map(Map::entrySet)
                     .map(Collection::stream)
                     .orElseGet(Stream::empty)
-                    .map(e -> String.format("Field [%s] message [%s]", e.getKey(), e.getValue()))
+                    .map(e -> String.format("Assignment [" + assignment.getActivityId() + "] field [%s] in form [" + form.getPropertyString("id") + "] error [%s]", e.getKey(), e.getValue()))
                     .collect(Collectors.joining(", "));
+
 
             if (!errorMessage.isEmpty()) {
                 throw new ProcessException(errorMessage);
             }
+
+            appService.completeAssignmentForm(form, assignment, formData, variableMap);
         }
     }
 
@@ -162,25 +165,18 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     }
 
     /**
-     * Get property "force"
-     *
-     * @param props
-     * @return
-     */
-    private boolean isForce(Map props) {
-        return "true".equalsIgnoreCase(String.valueOf(props.get("force")));
-    }
-
-    /**
      * Get property "asUser"
      *
      * @param props
      * @return
      */
     @Nonnull
-    private String getAsUser(Map props) throws ProcessException {
-        String username = String.valueOf(props.get("asUser"));
-        return getUser(username).getUsername();
+    private Set<String> getAsUser(Map props) throws ProcessException {
+        return Arrays.stream(String.valueOf(props.get("asUser"))
+                .split(";"))
+                .map(throwableFunction(this::getUser))
+                .map(User::getUsername)
+                .collect(Collectors.toSet());
     }
 
 

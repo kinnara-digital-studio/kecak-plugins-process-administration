@@ -14,8 +14,9 @@ import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
-import org.joget.workflow.shark.model.dao.WorkflowAssignmentDao;
+import org.joget.workflow.model.service.WorkflowUserManager;
 import org.springframework.context.ApplicationContext;
+import sun.rmi.runtime.Log;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -121,22 +122,28 @@ public interface ProcessUtils {
      */
     default User getUser(String username) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
+//        WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
+
         UserDao userDao = (UserDao) applicationContext.getBean("userDao");
         return Optional.ofNullable(username)
                 .map(userDao::getUser)
+//                .map(peek(u -> workflowUserManager.setCurrentThreadUser(u.getUsername())))
                 .orElseThrow(() -> new ProcessException("User [" + username + "] is not available"));
     }
 
     @Nonnull
-    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Set<String> activityDefIds, @Nullable String username) {
+    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Set<String> activityDefIds, @Nonnull String username) {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
-        WorkflowAssignmentDao workflowAssignmentDao = (WorkflowAssignmentDao) applicationContext.getBean("workflowAssignmentDao");
+        WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
+        WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
 
-        return Optional.ofNullable(workflowAssignmentDao.getAssignmentsByProcessIds(Collections.singleton(processId), username, null, null, null, null, null))
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
+        workflowUserManager.setCurrentThreadUser(username);
+        return Optional.of(processId)
+                .map(workflowManager::getAssignmentByProcess)
                 .filter(a -> activityDefIds.isEmpty() || activityDefIds.contains(a.getActivityDefId()))
-                .collect(Collectors.toList());
+                .map(Collections::singleton)
+                .orElse(Collections.emptySet());
+
     }
 
 

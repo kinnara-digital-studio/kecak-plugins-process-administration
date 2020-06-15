@@ -30,18 +30,6 @@
         "required" : "true"
       },
       {
-        "name" : "force",
-        "label" : "@@processAdministration.force@@",
-        "description" : "@@processAdministration.force.desc@@",
-        "type" : "checkbox",
-        "options": [
-          {
-            "value": "true",
-            "label": ""
-          }
-        ]
-      },
-      {
         "name" : "workflowVariables",
         "label" : "@@processAdministration.workflowVariables@@",
         "type": "grid",
