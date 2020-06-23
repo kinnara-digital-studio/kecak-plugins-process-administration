@@ -1,0 +1,22 @@
+[
+  {
+    "title": "@@processAdministration.processPerformerFormatter@@",
+    "properties": [
+      {
+        "name" : "processId",
+        "label" : "@@userview.datalistinboxmenu.process@@",
+        "type" : "selectbox",
+        "required" : "false",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getProcesses"
+      },
+      {
+        "name" : "activityDefIds",
+        "label" : "@@processAdministration.activities@@",
+        "type" : "multiselect",
+        "required" : "true",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getActivities",
+        "options_ajax_on_change" : "processId"
+      }
+    ]
+  }
+]

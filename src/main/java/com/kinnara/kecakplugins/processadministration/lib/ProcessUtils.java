@@ -10,6 +10,7 @@ import org.joget.apps.form.model.FormData;
 import org.joget.commons.util.LogUtil;
 import org.joget.directory.dao.UserDao;
 import org.joget.directory.model.User;
+import org.joget.workflow.model.WorkflowActivity;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
@@ -68,6 +69,33 @@ public interface ProcessUtils {
             stream = Stream.concat(stream, elementStream(child, formData));
         }
         return stream;
+    }
+
+    /**
+     *
+     *
+     * @param processId
+     * @param activityDefIds
+     * @return
+     */
+    @Nonnull
+    default Collection<WorkflowActivity> getCompletedWorkflowActivities(String processId, @Nonnull Set<String> activityDefIds) {
+        ApplicationContext applicationContext = AppUtil.getApplicationContext();
+
+        WorkflowManager wfManager = (WorkflowManager)applicationContext.getBean("workflowManager");
+        WorkflowProcessLinkDao workflowProcessLinkDao = (WorkflowProcessLinkDao) applicationContext.getBean("workflowProcessLinkDao");
+
+        return Optional.of(processId)
+                .map(workflowProcessLinkDao::getLinks)
+                .map(Collection::stream)
+                .orElseGet(Stream::empty)
+                .map(WorkflowProcessLink::getProcessId)
+                .map(s -> wfManager.getActivityList(s, null, Integer.MAX_VALUE, "id", null))
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(a -> activityDefIds.isEmpty() || activityDefIds.contains(a.getActivityDefId()))
+                .filter(a -> a.getState().contains("completed"))
+                .collect(Collectors.toList());
     }
 
     /**
