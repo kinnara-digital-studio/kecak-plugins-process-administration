@@ -167,17 +167,24 @@ public interface ProcessUtils {
     }
 
     @Nonnull
-    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Collection<String> activityDefIds, @Nonnull String username) {
+    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Collection<String> activityDefIds, @Nonnull String username) throws ProcessException {
+        AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
 
         workflowUserManager.setCurrentThreadUser(username);
         return Optional.of(processId)
-                .map(workflowManager::getAssignmentByProcess)
-                .filter(a -> activityDefIds.isEmpty() || activityDefIds.contains(a.getActivityDefId()))
-                .map(Collections::singleton)
-                .orElse(Collections.emptySet());
+                .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(appDefinition.getAppId(), null, it, null, null, null, null))
+                .map(Collection::stream)
+                .orElseThrow(() -> new ProcessException("No assignment found in process ["+processId+"] by ["+username+"]"))
+                .filter(a -> activityDefIds.isEmpty() || Optional.of(a)
+                        .map(WorkflowAssignment::getActivityId)
+                        .map(workflowManager::getActivityById)
+                        .map(WorkflowActivity::getActivityDefId)
+                        .map(activityDefIds::contains)
+                        .orElse(false))
+                .collect(Collectors.toSet());
 
     }
 

@@ -206,7 +206,8 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     private JSONObject getBodyPayload(HttpServletRequest request) {
         try(BufferedReader bufferedReader = new BufferedReader(request.getReader())) {
-            return new JSONObject(bufferedReader.lines().collect(Collectors.joining()));
+            String lines = bufferedReader.lines().collect(Collectors.joining());
+            return new JSONObject(lines.isEmpty() ? "{}" : lines);
         } catch (IOException | JSONException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
             return new JSONObject();
@@ -243,20 +244,19 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-
+        LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
         try {
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
             if (!isAdmin) {
                 throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "User is not an admin");
             }
 
-            String action = request.getParameter("action");
-            String appId = request.getParameter("appId");
-            String appVersion = request.getParameter("appVersion");
+            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+            String action = getRequiredParameter(request, "action");
+            String appId = appDef.getAppId();
             ApplicationContext ac = AppUtil.getApplicationContext();
             AppService appService = (AppService) ac.getBean("appService");
             WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
-            AppDefinition appDef = appService.getAppDefinition(appId, appVersion);
 
             if("completeAssignment".equals(action)) {
                 if(!"POST".equalsIgnoreCase(request.getMethod())) {
@@ -265,19 +265,30 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                 String processId = getRequiredParameter(request, "processId");
                 Collection<String> activityDefIds = getRequiredParameterValues(request, "activityDefId");
-                String loginAs = getRequiredParameter(request, "loginAs");
+                String loginAs = getOptionalParameter(request, "loginAs", WorkflowUtil.getCurrentUsername());
 
                 JSONArray jsonAssignments = new JSONArray();
-                getAssignmentByProcess(processId, activityDefIds, loginAs)
-                        .forEach(throwableConsumer(a -> {
-                            assignmentComplete(a, getWorkflowVariables(getBodyPayload(request)), loginAs);
-                            jsonAssignments.put(a.getActivityId());
-                        }));
+                try {
+                    JSONObject bodyPayload = getBodyPayload(request);
+                    getAssignmentByProcess(processId, activityDefIds, loginAs)
+                            .forEach(throwableConsumer(a -> {
+                                assignmentComplete(a, getWorkflowVariables(bodyPayload), loginAs);
+                                jsonAssignments.put(a.getActivityId());
+                            }));
+                } catch (ProcessException e) {
+                    throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, e.getMessage(), e);
+                }
 
                 try {
                     JSONObject jsonResponse = new JSONObject();
-                    jsonResponse.put("assignments", jsonAssignments);
-                    jsonResponse.put("message", "success");
+                    int completedAssignments = jsonAssignments.length();
+                    if(completedAssignments > 0) {
+                        jsonResponse.put("assignments", jsonAssignments);
+                        jsonResponse.put("message", "Successfully completing [" + completedAssignments + "] assignments");
+                    } else {
+                        jsonResponse.put("message", "No assignment has been completed");
+                    }
+
                     response.getWriter().write(jsonResponse.toString());
                 } catch (JSONException e) {
                     LogUtil.error(getClass().getName(), e, e.getMessage());
@@ -303,7 +314,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                     }
                     jsonArray.write(response.getWriter());
                 } catch (Exception ex) {
-                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get Process options Error!", ex);
+                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get Process options Error!", ex);
                 }
             }
 
@@ -315,32 +326,28 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                     empty.put("value", "");
                     empty.put("label", "");
                     jsonArray.put(empty);
-                    String processId = request.getParameter("processId");
-                    if (!"null".equalsIgnoreCase(processId) && !processId.isEmpty()) {
-                        String processDefId = "";
-                        if (appDef != null) {
-                            WorkflowProcess process = appService.getWorkflowProcessForApp(appDef.getId(), appDef.getVersion().toString(), processId);
-                            processDefId = process.getId();
-                        }
-                        Collection<WorkflowActivity> activityList = workflowManager.getProcessActivityDefinitionList(processDefId);
-                        for (WorkflowActivity a : activityList) {
-                            if (a.getType().equals("route") || a.getType().equals("tool")) continue;
-                            HashMap<String, String> option = new HashMap<String, String>();
-                            option.put("value", a.getActivityDefId());
-                            option.put("label", a.getName() + " (" + a.getActivityDefId() + ")");
-                            jsonArray.put(option);
-                        }
+                    String processId = getRequiredParameter(request, "processId");
+                    WorkflowProcess process = appService.getWorkflowProcessForApp(appDef.getId(), appDef.getVersion().toString(), processId);
+                    String processDefId = process.getId();
+                    Collection<WorkflowActivity> activityList = workflowManager.getProcessActivityDefinitionList(processDefId);
+                    for (WorkflowActivity a : activityList) {
+                        if (a.getType().equals("route") || a.getType().equals("tool")) continue;
+                        HashMap<String, String> option = new HashMap<String, String>();
+                        option.put("value", a.getActivityDefId());
+                        option.put("label", a.getName() + " (" + a.getActivityDefId() + ")");
+                        jsonArray.put(option);
                     }
+
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get activity options Error!", ex);
+                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get activity options Error!", ex);
                 }
             }
 
             // get participants
             else if ("getParticipants".equalsIgnoreCase(action)) {
                 try {
-                    String processId = request.getParameter("processId");
+                    String processId = getRequiredParameter(request, "processId");
                     String packageId = appDef.getPackageDefinition().getId();
                     long packageVersion = appDef.getPackageDefinition().getVersion();
 
@@ -360,14 +367,14 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get participants options Error!", ex);
+                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get participants options Error!", ex);
                 }
             }
 
             // get variables
             else if ("getVariables".equalsIgnoreCase(action)) {
                 try {
-                    String processId = request.getParameter("processId");
+                    String processId = getRequiredParameter(request, "processId");
                     String packageId = appDef.getPackageDefinition().getId();
                     long packageVersion = appDef.getPackageDefinition().getVersion();
                     JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
@@ -387,10 +394,13 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get variables options Error!", ex);
+                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get variables options Error!", ex);
                 }
-            } else {
-                throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "");
+            }
+
+            // other actions
+            else {
+                throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Action ["+action+"] is not supported");
             }
         } catch (RestApiException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
@@ -404,6 +414,8 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 .map(Arrays::stream)
                 .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"))
                 .filter(not(String::isEmpty))
+                .map(it -> it.split("[;,]"))
+                .flatMap(Arrays::stream)
                 .collect(Collectors.toSet());
     }
 
@@ -412,5 +424,12 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 .map(request::getParameter)
                 .filter(not(String::isEmpty))
                 .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"));
+    }
+
+    private String getOptionalParameter(HttpServletRequest request, String parameterName, String defaultValue) {
+        return Optional.of(parameterName)
+                .map(request::getParameter)
+                .filter(not(String::isEmpty))
+                .orElse(defaultValue);
     }
 }
