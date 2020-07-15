@@ -12,6 +12,11 @@ public class RestApiException extends Exception {
         this.httpErrorCode = errorCode;
     }
 
+    public RestApiException(int errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.httpErrorCode = errorCode;
+    }
+
     public int getErrorCode() {
         return httpErrorCode;
     }

@@ -1,6 +1,7 @@
 package com.kinnara.kecakplugins.processadministration;
 
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
+import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
 import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageActivityForm;
@@ -23,6 +24,7 @@ import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
@@ -30,10 +32,14 @@ import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author aristo
@@ -62,14 +68,14 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
         try {
             getAsUser(props)
                     .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), currentUser)
-                    .forEach(throwableConsumer(assignment -> assignmentComplete(props, assignment, getWorkflowVariables(props), currentUser)))));
+                    .forEach(throwableConsumer(assignment -> assignmentComplete(assignment, getWorkflowVariables(props), currentUser)))));
         } catch (ProcessException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
         }
         return null;
     }
 
-    private void assignmentComplete(@Nonnull Map properties, @Nonnull WorkflowAssignment assignment, Map<String, String> variableMap, String username) throws ProcessException {
+    private void assignmentComplete(@Nonnull WorkflowAssignment assignment, Map<String, String> variableMap, String username) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
@@ -173,7 +179,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     @Nonnull
     private Set<String> getAsUser(Map props) throws ProcessException {
         return Arrays.stream(String.valueOf(props.get("asUser"))
-                .split(";"))
+                .split("[;,]"))
                 .map(throwableFunction(this::getUser))
                 .map(User::getUsername)
                 .collect(Collectors.toSet());
@@ -196,6 +202,20 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                     String value = String.valueOf(stringObject.get("value"));
                     stringString.put(variable, value);
                 }, Map::putAll);
+    }
+
+    private JSONObject getBodyPayload(HttpServletRequest request) {
+        try(BufferedReader bufferedReader = new BufferedReader(request.getReader())) {
+            return new JSONObject(bufferedReader.lines().collect(Collectors.joining()));
+        } catch (IOException | JSONException e) {
+            LogUtil.error(getClass().getName(), e, e.getMessage());
+            return new JSONObject();
+        }
+    }
+
+    private Map<String, String> getWorkflowVariables(@Nonnull JSONObject jsonObject) {
+        return jsonKeyStream(jsonObject)
+                .collect(Collectors.toMap(String::valueOf, jsonObject::optString));
     }
 
     /**
@@ -223,127 +243,174 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
-        if (!isAdmin) {
-            response.sendError(401);
-            return;
-        }
 
-        String action = request.getParameter("action");
-        String appId = request.getParameter("appId");
-        String appVersion = request.getParameter("appVersion");
-        ApplicationContext ac = AppUtil.getApplicationContext();
-        AppService appService = (AppService) ac.getBean("appService");
-        WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
-        AppDefinition appDef = appService.getAppDefinition(appId, appVersion);
-
-        // get processes
-        if ("getProcesses".equals(action)) {
-            try {
-                JSONArray jsonArray = new JSONArray();
-                PackageDefinition packageDefinition = appDef.getPackageDefinition();
-                Long packageVersion = packageDefinition != null ? packageDefinition.getVersion() : new Long(1);
-                Collection<WorkflowProcess> processList = workflowManager.getProcessList(appId, packageVersion.toString());
-                HashMap<String, String> empty = new HashMap<>();
-                empty.put("value", "");
-                empty.put("label", "");
-                jsonArray.put(empty);
-                for (WorkflowProcess p : processList) {
-                    HashMap<String, String> option = new HashMap<String, String>();
-                    option.put("value", p.getIdWithoutVersion());
-                    option.put("label", p.getName() + " (" + p.getIdWithoutVersion() + ")");
-                    jsonArray.put(option);
-                }
-                jsonArray.write(response.getWriter());
-            } catch (Exception ex) {
-                LogUtil.error(getClass().getName(), ex, "Get Process options Error!");
+        try {
+            boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
+            if (!isAdmin) {
+                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "User is not an admin");
             }
-        }
 
-        // get activities
-        else if ("getActivities".equals(action)) {
-            try {
-                JSONArray jsonArray = new JSONArray();
-                HashMap<String, String> empty = new HashMap<String, String>();
-                empty.put("value", "");
-                empty.put("label", "");
-                jsonArray.put(empty);
-                String processId = request.getParameter("processId");
-                if (!"null".equalsIgnoreCase(processId) && !processId.isEmpty()) {
-                    String processDefId = "";
-                    if (appDef != null) {
-                        WorkflowProcess process = appService.getWorkflowProcessForApp(appDef.getId(), appDef.getVersion().toString(), processId);
-                        processDefId = process.getId();
-                    }
-                    Collection<WorkflowActivity> activityList = workflowManager.getProcessActivityDefinitionList(processDefId);
-                    for (WorkflowActivity a : activityList) {
-                        if (a.getType().equals("route") || a.getType().equals("tool")) continue;
+            String action = request.getParameter("action");
+            String appId = request.getParameter("appId");
+            String appVersion = request.getParameter("appVersion");
+            ApplicationContext ac = AppUtil.getApplicationContext();
+            AppService appService = (AppService) ac.getBean("appService");
+            WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
+            AppDefinition appDef = appService.getAppDefinition(appId, appVersion);
+
+            if("completeAssignment".equals(action)) {
+                if(!"POST".equalsIgnoreCase(request.getMethod())) {
+                    throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Cannot accept method ["+request.getMethod()+"]");
+                }
+
+                String processId = getRequiredParameter(request, "processId");
+                Collection<String> activityDefIds = getRequiredParameterValues(request, "activityDefId");
+                String loginAs = getRequiredParameter(request, "loginAs");
+
+                JSONArray jsonAssignments = new JSONArray();
+                getAssignmentByProcess(processId, activityDefIds, loginAs)
+                        .forEach(throwableConsumer(a -> {
+                            assignmentComplete(a, getWorkflowVariables(getBodyPayload(request)), loginAs);
+                            jsonAssignments.put(a.getActivityId());
+                        }));
+
+                try {
+                    JSONObject jsonResponse = new JSONObject();
+                    jsonResponse.put("assignments", jsonAssignments);
+                    jsonResponse.put("message", "success");
+                    response.getWriter().write(jsonResponse.toString());
+                } catch (JSONException e) {
+                    LogUtil.error(getClass().getName(), e, e.getMessage());
+                }
+            }
+
+            // get processes
+            else if ("getProcesses".equals(action)) {
+                try {
+                    JSONArray jsonArray = new JSONArray();
+                    PackageDefinition packageDefinition = appDef.getPackageDefinition();
+                    Long packageVersion = packageDefinition != null ? packageDefinition.getVersion() : new Long(1);
+                    Collection<WorkflowProcess> processList = workflowManager.getProcessList(appId, packageVersion.toString());
+                    HashMap<String, String> empty = new HashMap<>();
+                    empty.put("value", "");
+                    empty.put("label", "");
+                    jsonArray.put(empty);
+                    for (WorkflowProcess p : processList) {
                         HashMap<String, String> option = new HashMap<String, String>();
-                        option.put("value", a.getActivityDefId());
-                        option.put("label", a.getName() + " (" + a.getActivityDefId() + ")");
+                        option.put("value", p.getIdWithoutVersion());
+                        option.put("label", p.getName() + " (" + p.getIdWithoutVersion() + ")");
                         jsonArray.put(option);
                     }
+                    jsonArray.write(response.getWriter());
+                } catch (Exception ex) {
+                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get Process options Error!", ex);
                 }
-                jsonArray.write(response.getWriter());
-            } catch (Exception ex) {
-                LogUtil.error(getClass().getName(), ex, "Get activity options Error!");
             }
-        }
 
-        // get participants
-        else if ("getParticipants".equalsIgnoreCase(action)) {
-            try {
-                String processId = request.getParameter("processId");
-                String packageId = appDef.getPackageDefinition().getId();
-                long packageVersion = appDef.getPackageDefinition().getVersion();
-
-                JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
-                        .filter(s -> !s.isEmpty())
-                        .map(s -> String.join("#", packageId, String.valueOf(packageVersion), s))
-                        .map(workflowManager::getProcessParticipantDefinitionList)
-                        .map(Collection::stream)
-                        .orElseGet(Stream::empty)
-                        .map(throwableFunction(p -> {
-                            JSONObject json = new JSONObject();
-                            json.put("value", p.getId());
-                            json.put("label", p.getName());
-                            return json;
-                        }))
-                        .collect(Collectors.toList()));
-
-                jsonArray.write(response.getWriter());
-            } catch (Exception ex) {
-                LogUtil.error(getClass().getName(), ex, "Get participants options Error!");
+            // get activities
+            else if ("getActivities".equals(action)) {
+                try {
+                    JSONArray jsonArray = new JSONArray();
+                    HashMap<String, String> empty = new HashMap<String, String>();
+                    empty.put("value", "");
+                    empty.put("label", "");
+                    jsonArray.put(empty);
+                    String processId = request.getParameter("processId");
+                    if (!"null".equalsIgnoreCase(processId) && !processId.isEmpty()) {
+                        String processDefId = "";
+                        if (appDef != null) {
+                            WorkflowProcess process = appService.getWorkflowProcessForApp(appDef.getId(), appDef.getVersion().toString(), processId);
+                            processDefId = process.getId();
+                        }
+                        Collection<WorkflowActivity> activityList = workflowManager.getProcessActivityDefinitionList(processDefId);
+                        for (WorkflowActivity a : activityList) {
+                            if (a.getType().equals("route") || a.getType().equals("tool")) continue;
+                            HashMap<String, String> option = new HashMap<String, String>();
+                            option.put("value", a.getActivityDefId());
+                            option.put("label", a.getName() + " (" + a.getActivityDefId() + ")");
+                            jsonArray.put(option);
+                        }
+                    }
+                    jsonArray.write(response.getWriter());
+                } catch (JSONException ex) {
+                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get activity options Error!", ex);
+                }
             }
-        }
 
-        // get variables
-        else if ("getVariables".equalsIgnoreCase(action)) {
-            try {
-                String processId = request.getParameter("processId");
-                String packageId = appDef.getPackageDefinition().getId();
-                long packageVersion = appDef.getPackageDefinition().getVersion();
-                JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
-                        .filter(s -> !s.isEmpty())
-                        .map(s -> String.join("#", packageId, String.valueOf(packageVersion), s))
-                        .map(workflowManager::getProcessVariableDefinitionList)
-                        .map(Collection::stream)
-                        .orElseGet(Stream::empty)
-                        .map(WorkflowVariable::getId)
-                        .map(throwableFunction(s -> {
-                            JSONObject json = new JSONObject();
-                            json.put("value", s);
-                            json.put("label", s);
-                            return json;
-                        }))
-                        .collect(Collectors.toList()));
+            // get participants
+            else if ("getParticipants".equalsIgnoreCase(action)) {
+                try {
+                    String processId = request.getParameter("processId");
+                    String packageId = appDef.getPackageDefinition().getId();
+                    long packageVersion = appDef.getPackageDefinition().getVersion();
 
-                jsonArray.write(response.getWriter());
-            } catch (Exception ex) {
-                LogUtil.error(getClass().getName(), ex, "Get variables options Error!");
+                    JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
+                            .filter(s -> !s.isEmpty())
+                            .map(s -> String.join("#", packageId, String.valueOf(packageVersion), s))
+                            .map(workflowManager::getProcessParticipantDefinitionList)
+                            .map(Collection::stream)
+                            .orElseGet(Stream::empty)
+                            .map(throwableFunction(p -> {
+                                JSONObject json = new JSONObject();
+                                json.put("value", p.getId());
+                                json.put("label", p.getName());
+                                return json;
+                            }))
+                            .collect(Collectors.toList()));
+
+                    jsonArray.write(response.getWriter());
+                } catch (JSONException ex) {
+                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get participants options Error!", ex);
+                }
             }
-        } else {
-            response.setStatus(204);
+
+            // get variables
+            else if ("getVariables".equalsIgnoreCase(action)) {
+                try {
+                    String processId = request.getParameter("processId");
+                    String packageId = appDef.getPackageDefinition().getId();
+                    long packageVersion = appDef.getPackageDefinition().getVersion();
+                    JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
+                            .filter(s -> !s.isEmpty())
+                            .map(s -> String.join("#", packageId, String.valueOf(packageVersion), s))
+                            .map(workflowManager::getProcessVariableDefinitionList)
+                            .map(Collection::stream)
+                            .orElseGet(Stream::empty)
+                            .map(WorkflowVariable::getId)
+                            .map(throwableFunction(s -> {
+                                JSONObject json = new JSONObject();
+                                json.put("value", s);
+                                json.put("label", s);
+                                return json;
+                            }))
+                            .collect(Collectors.toList()));
+
+                    jsonArray.write(response.getWriter());
+                } catch (JSONException ex) {
+                    throw new RestApiException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Get variables options Error!", ex);
+                }
+            } else {
+                throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "");
+            }
+        } catch (RestApiException e) {
+            LogUtil.error(getClass().getName(), e, e.getMessage());
+            response.sendError(e.getErrorCode(), e.getMessage());
         }
+    }
+
+    private Collection<String> getRequiredParameterValues(HttpServletRequest request, String parameterName) throws RestApiException {
+        return Optional.of(parameterName)
+                .map(request::getParameterValues)
+                .map(Arrays::stream)
+                .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"))
+                .filter(not(String::isEmpty))
+                .collect(Collectors.toSet());
+    }
+
+    private String getRequiredParameter(HttpServletRequest request, String parameterName) throws RestApiException {
+        return Optional.of(parameterName)
+                .map(request::getParameter)
+                .filter(not(String::isEmpty))
+                .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"));
     }
 }

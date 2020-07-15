@@ -10,12 +10,14 @@ import org.joget.apps.form.model.FormData;
 import org.joget.commons.util.LogUtil;
 import org.joget.directory.dao.UserDao;
 import org.joget.directory.model.User;
+import org.joget.directory.model.service.DirectoryManager;
 import org.joget.workflow.model.WorkflowActivity;
 import org.joget.workflow.model.WorkflowAssignment;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
+import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 import sun.rmi.runtime.Log;
 
@@ -25,6 +27,7 @@ import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public interface ProcessUtils {
 
@@ -69,6 +72,13 @@ public interface ProcessUtils {
             stream = Stream.concat(stream, elementStream(child, formData));
         }
         return stream;
+    }
+
+    default Stream<String> jsonKeyStream(@Nonnull JSONObject jsonObject) {
+        Objects.requireNonNull(jsonObject);
+        Iterator<String> iterator = jsonObject.keys();
+        Spliterator<String> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED);
+        return StreamSupport.stream(spliterator, true);
     }
 
     /**
@@ -150,17 +160,14 @@ public interface ProcessUtils {
      */
     default User getUser(String username) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
-//        WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
-
-        UserDao userDao = (UserDao) applicationContext.getBean("userDao");
+        DirectoryManager directoryManager = (DirectoryManager) applicationContext.getBean("directoryManager");
         return Optional.ofNullable(username)
-                .map(userDao::getUser)
-//                .map(peek(u -> workflowUserManager.setCurrentThreadUser(u.getUsername())))
+                .map(directoryManager::getUserByUsername)
                 .orElseThrow(() -> new ProcessException("User [" + username + "] is not available"));
     }
 
     @Nonnull
-    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Set<String> activityDefIds, @Nonnull String username) {
+    default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Collection<String> activityDefIds, @Nonnull String username) {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
@@ -174,6 +181,10 @@ public interface ProcessUtils {
 
     }
 
+
+    default  <T> Predicate<T> not(Predicate<T> p) {
+        return t -> !p.test(t);
+    }
 
     /*
      *
