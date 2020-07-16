@@ -253,7 +253,9 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String action = getRequiredParameter(request, "action");
-            String appId = appDef.getAppId();
+            String appId = Optional.ofNullable(appDef)
+                    .map(AppDefinition::getAppId)
+                    .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_NOT_FOUND, "Application not found"));
             ApplicationContext ac = AppUtil.getApplicationContext();
             AppService appService = (AppService) ac.getBean("appService");
             WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
