@@ -44,7 +44,7 @@ import java.util.stream.StreamSupport;
 /**
  * @author aristo
  *
- * Complete other pending assignment
+ * Complete other pending assignments
  *
  */
 public class ProcessCompletionTool extends DefaultApplicationPlugin implements ProcessUtils, PluginWebSupport {
