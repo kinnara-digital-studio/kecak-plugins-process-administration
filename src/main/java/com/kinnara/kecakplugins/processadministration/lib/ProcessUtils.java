@@ -174,9 +174,15 @@ public interface ProcessUtils {
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
 
         workflowUserManager.setCurrentThreadUser(username);
+
+        assert workflowManager != null;
+        assert appDefinition != null;
+
         return Optional.of(processId)
                 .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(appDefinition.getAppId(), null, it, null, null, null, null))
+                .filter(Objects::nonNull)
                 .map(Collection::stream)
+                .filter(Objects::nonNull)
                 .orElseThrow(() -> new ProcessException("No assignment found in process ["+processId+"] by ["+username+"]"))
                 .filter(a -> activityDefIds.isEmpty() || Optional.of(a)
                         .map(WorkflowAssignment::getActivityId)

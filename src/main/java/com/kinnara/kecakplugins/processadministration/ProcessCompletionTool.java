@@ -230,6 +230,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
         return String.valueOf(props.get("processInstanceId"));
     }
 
+    @Nonnull
     private String getAssignmentProcessId(Map props) throws ProcessException {
         String processInstanceId = getLatestProcessId(getProcessInstanceId(props));
         if(!processInstanceId.isEmpty()) {
