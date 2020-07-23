@@ -67,6 +67,8 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     public Object execute(Map props) {
         try {
             getAsUser(props)
+                    .stream()
+                    .sorted()
                     .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), currentUser)
                     .forEach(throwableConsumer(assignment -> assignmentComplete(assignment, getWorkflowVariables(props), currentUser)))));
         } catch (ProcessException e) {
