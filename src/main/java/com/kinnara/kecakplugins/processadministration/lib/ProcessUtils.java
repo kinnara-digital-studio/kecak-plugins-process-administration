@@ -183,6 +183,7 @@ public interface ProcessUtils {
                 .map(WorkflowProcessLink::getProcessId)
                 .filter(Objects::nonNull)
                 .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(null, null, it, null, null, null, null))
+                .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
                 .filter(a -> activityDefIds.isEmpty() || Optional.of(a)
                         .map(WorkflowAssignment::getActivityId)
