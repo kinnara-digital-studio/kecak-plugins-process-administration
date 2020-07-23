@@ -1,6 +1,7 @@
 package com.kinnara.kecakplugins.processadministration.lib;
 
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
+import com.sun.tools.internal.ws.processor.ProcessorException;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
 import org.joget.apps.app.service.AppService;
@@ -168,18 +169,21 @@ public interface ProcessUtils {
 
     @Nonnull
     default Collection<WorkflowAssignment> getAssignmentByProcess(@Nonnull String processId, @Nonnull Collection<String> activityDefIds, @Nonnull String username) throws ProcessException {
-        AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
+        WorkflowProcessLinkDao workflowProcessLinkDao = (WorkflowProcessLinkDao) applicationContext.getBean("workflowProcessLinkDao");
 
         workflowUserManager.setCurrentThreadUser(username);
 
-        return Optional.ofNullable(appDefinition)
-                .map(AppDefinition::getAppId)
-                .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(it, null, processId, null, null, null, null))
+        return Optional.of(processId)
+                .map(workflowProcessLinkDao::getLinks)
                 .map(Collection::stream)
-                .orElseThrow(() -> new ProcessException("No assignment found in process ["+processId+"] by ["+username+"]"))
+                .orElseThrow(() -> new ProcessException("Process id ["+processId+"] is not recognized"))
+                .map(WorkflowProcessLink::getProcessId)
+                .filter(Objects::nonNull)
+                .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(null, null, it, null, null, null, null))
+                .flatMap(Collection::stream)
                 .filter(a -> activityDefIds.isEmpty() || Optional.of(a)
                         .map(WorkflowAssignment::getActivityId)
                         .map(workflowManager::getActivityById)
