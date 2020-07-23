@@ -175,7 +175,7 @@ public interface ProcessUtils {
 
         workflowUserManager.setCurrentThreadUser(username);
 
-        return Optional.of(appDefinition)
+        return Optional.ofNullable(appDefinition)
                 .map(AppDefinition::getAppId)
                 .map(it -> workflowManager.getAssignmentPendingAndAcceptedList(it, null, processId, null, null, null, null))
                 .map(Collection::stream)
