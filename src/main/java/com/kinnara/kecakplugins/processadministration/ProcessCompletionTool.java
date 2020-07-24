@@ -180,8 +180,14 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
      */
     @Nonnull
     private Set<String> getAsUser(Map props) throws ProcessException {
-        return Arrays.stream(String.valueOf(props.get("asUser"))
-                .split("[;,]"))
+        return Optional.of("asUser")
+                .map(props::get)
+                .map(String::valueOf)
+                .filter(not(String::isEmpty))
+                .map(it -> it.split("[;,]"))
+                .map(Arrays::stream)
+                .orElseThrow(() -> new ProcessException("getAsUser : Error retrieving property asUser [" + props.get("asUser") + "]"))
+                .filter(not(String::isEmpty))
                 .map(throwableFunction(this::getUser))
                 .map(User::getUsername)
                 .collect(Collectors.toSet());

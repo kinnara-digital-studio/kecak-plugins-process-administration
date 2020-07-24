@@ -160,6 +160,7 @@ public interface ProcessUtils {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         DirectoryManager directoryManager = (DirectoryManager) applicationContext.getBean("directoryManager");
         return Optional.ofNullable(username)
+                .filter(not(String::isEmpty))
                 .map(directoryManager::getUserByUsername)
                 .orElseThrow(() -> new ProcessException("User [" + username + "] is not available"));
     }
