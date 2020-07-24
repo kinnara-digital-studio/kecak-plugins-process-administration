@@ -66,6 +66,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     @Override
     public Object execute(Map props) {
         try {
+            LogUtil.info(getClassName(), "Attempting to complete assignment process ["+ getProcessInstanceId(props) +"]");
             getAsUser(props)
                     .stream()
                     .sorted()
@@ -253,7 +254,6 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
         try {
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
             if (!isAdmin) {
@@ -270,6 +270,8 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
 
             if("completeAssignment".equals(action)) {
+                LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
+
                 if(!"POST".equalsIgnoreCase(request.getMethod())) {
                     throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Cannot accept method ["+request.getMethod()+"]");
                 }
