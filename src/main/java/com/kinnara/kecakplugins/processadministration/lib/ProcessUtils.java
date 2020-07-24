@@ -12,10 +12,12 @@ import org.joget.directory.model.User;
 import org.joget.directory.model.service.DirectoryManager;
 import org.joget.workflow.model.WorkflowActivity;
 import org.joget.workflow.model.WorkflowAssignment;
+import org.joget.workflow.model.WorkflowProcess;
 import org.joget.workflow.model.WorkflowProcessLink;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
+import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
@@ -163,6 +165,13 @@ public interface ProcessUtils {
                 .filter(not(String::isEmpty))
                 .map(directoryManager::getUserByUsername)
                 .orElseThrow(() -> new ProcessException("User [" + username + "] is not available"));
+    }
+
+    @Nonnull
+    default WorkflowAssignment getWorkflowAssignment(Map properties) throws ProcessException {
+        return (WorkflowAssignment) Optional.of("workflowAssignment")
+                .map(properties::get)
+                .orElseThrow(() -> new ProcessException("Property [workflowAssignment] is not available"));
     }
 
     @Nonnull
@@ -374,4 +383,27 @@ public interface ProcessUtils {
         void acceptThrowable(T t, U u) throws E;
     }
 
+    /**
+     * Get users in participants
+     *
+     * @param wfAssignment
+     * @param participantId
+     * @return
+     */
+    @Nonnull
+    default Collection<String> getUsersFromParticipant(@Nonnull WorkflowAssignment wfAssignment, @Nonnull String participantId) throws ProcessException {
+        WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
+        WorkflowProcess process = workflowManager.getProcess(wfAssignment.getProcessDefId());
+        return Optional.of(participantId)
+                .filter(not(String::isEmpty))
+                .map(it -> it.split("[;,]"))
+                .map(Arrays::stream)
+                .orElseThrow(() -> new ProcessException("Participant not found [" + participantId + "]"))
+                .map(String::trim)
+                .filter(not(String::isEmpty))
+                .map(it -> WorkflowUtil.getAssignmentUsers(process.getPackageId(), wfAssignment.getProcessDefId(), wfAssignment.getProcessId(), wfAssignment.getProcessVersion(), wfAssignment.getActivityId(), "", it))
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
+    }
 }

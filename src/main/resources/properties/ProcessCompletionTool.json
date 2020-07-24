@@ -3,7 +3,7 @@
     "title": "@@processAdministration.processCompletionToolTitle@@",
     "properties": [
       {
-        "name" : "processId",
+        "name" : "processDefId",
         "label" : "@@userview.datalistinboxmenu.process@@",
         "type" : "selectbox",
         "required" : "false",
@@ -15,7 +15,7 @@
         "type" : "multiselect",
         "required" : "true",
         "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getActivities",
-        "options_ajax_on_change" : "processId"
+        "options_ajax_on_change" : "processDefId"
       },
       {
         "name": "processInstanceId",
@@ -24,10 +24,12 @@
         "type" : "textfield"
       },
       {
-        "name" : "asUser",
-        "label" : "@@processAdministration.asUser@@",
-        "type" : "textfield",
-        "required" : "true"
+        "name" : "participants",
+        "label" : "@@processAdministration.participants@@",
+        "type" : "multiselect",
+        "required" : "true",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getParticipants",
+        "options_ajax_on_change" : "processDefId"
       },
       {
         "name" : "workflowVariables",
