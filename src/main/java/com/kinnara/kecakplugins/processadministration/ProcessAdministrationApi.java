@@ -74,17 +74,17 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
 
                 final Stream.Builder<String> variableStreamBuilder = Stream.builder();
                 try {
-                    BufferedReader br = request.getReader();
-                    JSONObject jsonBody = new JSONObject(br.lines().collect(Collectors.joining()));
+                    final BufferedReader br = request.getReader();
+                    final JSONObject jsonBody = new JSONObject(br.lines().collect(Collectors.joining()));
                     jsonBody.keys().forEachRemaining(key -> variableStreamBuilder.add(key.toString()));
 
-                    final JSONArray responseBody = new JSONArray();
-                    Stream.of(processIds)
+//                    final JSONArray responseBody = new JSONArray();
+                    final JSONArray responseBody = Stream.of(processIds)
                             .flatMap(pid -> processLinkDao.getLinks(pid).stream())
                             .map(WorkflowProcessLink::getProcessId)
                             .map(workflowManager::getAssignmentByProcess)
                             .filter(Objects::nonNull)
-                            .forEach(a -> {
+                            .map(a -> {
                                 LogUtil.info(getClassName(), "Process ID ["+a.getProcessId()+"] assignment ID ["+a.getActivityId()+"]");
                                 if (!a.isAccepted()) {
                                     workflowManager.assignmentAccept(a.getActivityId());
@@ -109,15 +109,25 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
                                     jsonObject.accumulate("processId", a.getProcessId());
                                     jsonObject.accumulate("activityId", a.getActivityId());
 
-                                    responseBody.put(jsonObject);
-                                } catch (JSONException ignored) { }
+//                                    responseBody.put(jsonObject);
+                                    return jsonObject;
+                                } catch (JSONException e) {
+                                    LogUtil.error(getClassName(), e, e.getMessage());
+                                    return null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
+                            .collect(JSONArray::new, JSONArray::put, (receiver, supplier) -> {
+                                for(int i = 0, size = supplier.length(); i < size; i++) {
+                                    try { receiver.put(supplier.get(i)); } catch (JSONException ignored) { }
+                                }
                             });
 
                     response.setContentType("application/json");
                     if(responseBody.length() > 0) {
                         response.setStatus(HttpServletResponse.SC_OK);
                     } else {
-                        response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                     }
                     response.getWriter().write(responseBody.toString());
 
