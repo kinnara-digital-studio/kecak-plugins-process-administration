@@ -34,12 +34,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * @author aristo
@@ -66,10 +63,15 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     @Override
     public Object execute(Map props) {
         try {
+            WorkflowAssignment workflowAssignment = getWorkflowAssignment(props);
+            String processInstanceId = getProcessInstanceId(props);
+
+            LogUtil.info(getClassName(), "Process tool [" + workflowAssignment.getActivityId() + "] is attempting to complete assignment process ["+ processInstanceId +"]");
+
             getAsUser(props)
                     .stream()
                     .sorted()
-                    .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(getAssignmentProcessId(props), getActivities(props), currentUser)
+                    .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(processInstanceId, getActivities(props), currentUser)
                     .forEach(throwableConsumer(assignment -> assignmentComplete(assignment, getWorkflowVariables(props), currentUser)))));
         } catch (ProcessException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
@@ -140,19 +142,19 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     @Override
     public String getPropertyOptions() {
-        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessCompletionTool.json", new Object[]{ getClassName(), getClassName() }, false, "/messages/ProcessAdministration");
+        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessCompletionTool.json", new Object[]{ getClassName(), getClassName(), getClassName() }, false, "/messages/ProcessAdministration");
     }
 
 
     /**
-     * Get proeprty "processId"
+     * Get property "processDefId"
      *
      * @param prop
      * @return
      */
     @Nonnull
-    private String getProcessId(Map prop) {
-        return String.valueOf(prop.get("processId"));
+    private String getProcessDefId(Map prop) {
+        return String.valueOf(prop.get("processDefId"));
     }
 
     /**
@@ -173,17 +175,41 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     }
 
     /**
-     * Get property "asUser"
+     * Get user from participants
      *
      * @param props
      * @return
      */
     @Nonnull
     private Set<String> getAsUser(Map props) throws ProcessException {
-        return Arrays.stream(String.valueOf(props.get("asUser"))
-                .split("[;,]"))
+        final WorkflowAssignment assignment = getWorkflowAssignment(props);
+
+        return getParticipants(props)
+                .stream()
+                .map(throwableFunction(it -> getUsersFromParticipant(assignment, it)))
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
                 .map(throwableFunction(this::getUser))
                 .map(User::getUsername)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Get property "participants"
+     *
+     * @param props
+     * @return
+     * @throws ProcessException
+     */
+    private Collection<String> getParticipants(Map props) throws ProcessException {
+        return Optional.of("participants")
+                .map(props::get)
+                .map(String::valueOf)
+                .filter(not(String::isEmpty))
+                .map(it -> it.split("[;,]"))
+                .map(Arrays::stream)
+                .orElseThrow(() -> new ProcessException("getParticipants : Error retrieving property asUser [" + props.get("participants") + "]"))
+                .filter(not(String::isEmpty))
                 .collect(Collectors.toSet());
     }
 
@@ -228,26 +254,17 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
      * @return
      */
     @Nonnull
-    private String getProcessInstanceId(Map props) {
-        return String.valueOf(props.get("processInstanceId"));
-    }
-
-    @Nonnull
-    private String getAssignmentProcessId(Map props) throws ProcessException {
-        String processInstanceId = getLatestProcessId(getProcessInstanceId(props));
-        if(!processInstanceId.isEmpty()) {
-            return processInstanceId;
-        } else {
-            WorkflowAssignment workflowAssignment = (WorkflowAssignment) props.get("workflowAssignment");
-            return Optional.ofNullable(workflowAssignment)
-                    .map(WorkflowAssignment::getProcessId)
-                    .orElseThrow(() -> new ProcessException("Assignment for current process instance"));
-        }
+    private String getProcessInstanceId(Map props) throws ProcessException {
+        return Optional.of("processInstanceId")
+                .map(props::get)
+                .map(String::valueOf)
+                .filter(not(String::isEmpty))
+                .map(this::getLatestProcessId)
+                .orElse(getWorkflowAssignment(props).getProcessId());
     }
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
         try {
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
             if (!isAdmin) {
@@ -264,17 +281,19 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
 
             if("completeAssignment".equals(action)) {
+                LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
+
                 if(!"POST".equalsIgnoreCase(request.getMethod())) {
                     throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Cannot accept method ["+request.getMethod()+"]");
                 }
 
-                String processId = getRequiredParameter(request, "processId");
                 Collection<String> activityDefIds = getRequiredParameterValues(request, "activityDefId");
                 String loginAs = getOptionalParameter(request, "loginAs", WorkflowUtil.getCurrentUsername());
 
                 JSONArray jsonAssignments = new JSONArray();
                 try {
                     JSONObject bodyPayload = getBodyPayload(request);
+                    String processId = getRequiredParameter(request, "processDefId");
                     getAssignmentByProcess(processId, activityDefIds, loginAs)
                             .forEach(throwableConsumer(a -> {
                                 assignmentComplete(a, getWorkflowVariables(bodyPayload), loginAs);
@@ -326,12 +345,12 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             // get activities
             else if ("getActivities".equals(action)) {
                 try {
+                    String processId = getRequiredParameter(request, "processDefId");
                     JSONArray jsonArray = new JSONArray();
                     HashMap<String, String> empty = new HashMap<String, String>();
                     empty.put("value", "");
                     empty.put("label", "");
                     jsonArray.put(empty);
-                    String processId = getRequiredParameter(request, "processId");
                     WorkflowProcess process = appService.getWorkflowProcessForApp(appDef.getId(), appDef.getVersion().toString(), processId);
                     String processDefId = process.getId();
                     Collection<WorkflowActivity> activityList = workflowManager.getProcessActivityDefinitionList(processDefId);
@@ -352,9 +371,9 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             // get participants
             else if ("getParticipants".equalsIgnoreCase(action)) {
                 try {
-                    String processId = getRequiredParameter(request, "processId");
                     String packageId = appDef.getPackageDefinition().getId();
                     long packageVersion = appDef.getPackageDefinition().getVersion();
+                    String processId = getRequiredParameter(request, "processDefId");
 
                     JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
                             .filter(s -> !s.isEmpty())
@@ -365,7 +384,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                             .map(throwableFunction(p -> {
                                 JSONObject json = new JSONObject();
                                 json.put("value", p.getId());
-                                json.put("label", p.getName());
+                                json.put("label", p.getName() + " (" + p.getId() + ")");
                                 return json;
                             }))
                             .collect(Collectors.toList()));
@@ -379,9 +398,9 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             // get variables
             else if ("getVariables".equalsIgnoreCase(action)) {
                 try {
-                    String processId = getRequiredParameter(request, "processId");
                     String packageId = appDef.getPackageDefinition().getId();
                     long packageVersion = appDef.getPackageDefinition().getVersion();
+                    String processId = getRequiredParameter(request, "processDefId");
                     JSONArray jsonArray = new JSONArray(Optional.ofNullable(processId)
                             .filter(s -> !s.isEmpty())
                             .map(s -> String.join("#", packageId, String.valueOf(packageVersion), s))
