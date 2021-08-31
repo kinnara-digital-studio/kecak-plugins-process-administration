@@ -1,7 +1,6 @@
 package com.kinnara.kecakplugins.processadministration;
 
 import org.joget.apps.app.dao.AppDefinitionDao;
-import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormUtil;
@@ -15,7 +14,7 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
     }
 
     @Override
-    public FormRowSet loadAjaxOptions(String[] strings) {
+    public FormRowSet loadAjaxOptions(String[] strings, FormData formData) {
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) AppUtil.getApplicationContext().getBean("appDefinitionDao");
         return appDefinitionDao.findByVersion(null, null, null, null, null, null, null, null)
                 .stream()
@@ -30,8 +29,8 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
     }
 
     @Override
-    public FormRowSet load(Element element, String s, FormData formData) {
-        return this.loadAjaxOptions(null);
+    public FormRowSet load(Element element, String primaryKey, FormData formData) {
+        return this.loadAjaxOptions(null, formData);
     }
 
     @Override

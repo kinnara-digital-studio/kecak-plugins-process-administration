@@ -17,7 +17,7 @@ public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinde
     }
 
     @Override
-    public FormRowSet loadAjaxOptions(String[] strings) {
+    public FormRowSet loadAjaxOptions(String[] strings, FormData formData) {
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) AppUtil.getApplicationContext().getBean("appDefinitionDao");
         final Set<String> duplicate = new HashSet<>();
         return appDefinitionDao.findByVersion(null, null, null, null, null, null, null, null)
@@ -34,7 +34,7 @@ public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinde
 
     @Override
     public FormRowSet load(Element element, String s, FormData formData) {
-        return this.loadAjaxOptions(null);
+        return this.loadAjaxOptions(null, formData);
     }
 
     @Override

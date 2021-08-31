@@ -2,7 +2,6 @@ package com.kinnara.kecakplugins.processadministration;
 
 import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
-import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormUtil;
@@ -28,7 +27,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     @Nonnull
-    public FormRowSet loadAjaxOptions(String[] dependencyValues) {
+    public FormRowSet loadAjaxOptions(String[] dependencyValues, FormData formData) {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) applicationContext.getBean("appDefinitionDao");
@@ -51,7 +50,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public FormRowSet load(Element element, String primaryKey, FormData formData) {
-        return loadAjaxOptions(null);
+        return loadAjaxOptions(null, formData);
     }
 
     @Override
@@ -86,7 +85,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        JSONArray result = loadAjaxOptions(null).stream()
+        JSONArray result = loadAjaxOptions(null, null).stream()
                 .map(r -> {
                     try {
                         JSONObject jsonObject = new JSONObject();

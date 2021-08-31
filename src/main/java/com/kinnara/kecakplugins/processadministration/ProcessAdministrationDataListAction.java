@@ -18,16 +18,14 @@ import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.workflow.lib.AssignmentCompleteButton;
 import org.joget.commons.util.LogUtil;
-import org.joget.workflow.model.WorkflowAssignment;
-import org.joget.workflow.model.WorkflowProcess;
-import org.joget.workflow.model.WorkflowProcessLink;
-import org.joget.workflow.model.WorkflowProcessResult;
+import org.joget.workflow.model.*;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.context.ApplicationContext;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -75,9 +73,15 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public DataListActionResult executeAction(DataList dataList, String[] rowKeys) {
-        DataListActionResult result = new DataListActionResult();
+        // only allow POST
+        if (!isPostMethod()) {
+            return null;
+        }
+
+        final DataListActionResult result = new DataListActionResult();
         result.setType(DataListActionResult.TYPE_REDIRECT);
         result.setUrl("REFERER");
+
 
         ApplicationContext appContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
@@ -156,7 +160,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
         } else if("migrate".equalsIgnoreCase(getPropertyString("action"))) {
-            AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
+            final AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
             getRunningProcess(rowKeys).stream()
                     .map(p -> {
@@ -189,7 +193,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .flatMap(Collection::stream)
 
                     // check status = open
-                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
+                    .filter(activity -> checkIfMigrationVisible(activity, publishedAppDefinition))
 
                     // reevaluate process
                     .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
@@ -306,17 +310,15 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
         WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
 
         return Arrays.stream(rowKeys)
-                .flatMap(id -> processLinkDao.getLinks(id).stream())
+                .map(processLinkDao::getLinks)
                 .filter(Objects::nonNull)
-
-                // filter by running process
-                .filter(link -> {
-                    WorkflowProcess p = workflowManager.getRunningProcessById(link.getProcessId());
-                    return !SharkConstants.STATE_CLOSED_ABORTED.equals(p.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(p.getState());
-                })
-
-
+                .flatMap(Collection::stream)
                 .map(WorkflowProcessLink::getProcessId)
+                // filter by running process
+                .filter(pid -> {
+                    WorkflowProcess p = workflowManager.getRunningProcessById(pid);
+                    return Objects.nonNull(p) && !SharkConstants.STATE_CLOSED_ABORTED.equals(p.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(p.getState());
+                })
                 .map(workflowManager::getAssignmentByProcess)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -344,5 +346,31 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 .filter(p -> p.getState() != null && p.getState().startsWith("open"))
 
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Check activity
+     *
+     * @return
+     */
+    protected boolean checkIfMigrationVisible(WorkflowActivity activity, AppDefinition targetAppDefinition) {
+        return activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN);
+    }
+
+    protected String getRedirectUrl() {
+        final HttpServletRequest request = WorkflowUtil.getHttpServletRequest();
+        return Optional.ofNullable(request)
+                .map(r -> r.getHeader("Referer"))
+                .map(s -> s.replaceAll("d-[0-9]+-ac=rowAction_[0-9]+(?=&)", ""))
+                .orElse("REFERER");
+    }
+
+    protected boolean isPostMethod() {
+        HttpServletRequest request = WorkflowUtil.getHttpServletRequest();
+
+        return Optional.ofNullable(request)
+                .map(HttpServletRequest::getMethod)
+                .map("POST"::equalsIgnoreCase)
+                .orElse(false);
     }
 }
