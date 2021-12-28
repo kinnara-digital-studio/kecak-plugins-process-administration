@@ -28,6 +28,7 @@ import org.springframework.context.ApplicationContext;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
@@ -82,7 +83,6 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
         result.setType(DataListActionResult.TYPE_REDIRECT);
         result.setUrl("REFERER");
 
-
         ApplicationContext appContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) appContext.getBean("appDefinitionDao");
@@ -92,25 +92,36 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) appContext.getBean("workflowUserManager");
         workflowUserManager.setCurrentThreadUser(WorkflowUtil.getCurrentUsername());
 
+        // complete assignment
         if("complete".equalsIgnoreCase(getPropertyString("action"))) {
-            Object[] workflowVariables = (Object[]) getProperty("workflowVariables");
+            final Map<String, String> worklfowVariables = Optional.ofNullable((Object[]) getProperty("workflowVariables"))
+                    .map(Arrays::stream)
+                    .orElseGet(Stream::empty)
+                    .map(o -> (Map<String, String>) o)
+                    .collect(Collectors.toMap(m -> m.get("variable"), m -> AppUtil.processHashVariable(m.get("value"), null, null, null)));
 
-            getAssignments(rowKeys).forEach(a -> {
-                if (!a.isAccepted()) {
-                    workflowManager.assignmentAccept(a.getActivityId());
-                }
+            if(isForced()) {
+                LogUtil.info(getClassName(), "Forced");
+                final String username = WorkflowUtil.getCurrentUsername();
+                getOpenActivities(rowKeys)
+                        .stream()
+                        .filter(a -> a.getState().startsWith("open.not_running"))
+                        .forEach(a -> {
+                            // set workflow variables
+                            workflowManager.activityVariables(a.getId(), worklfowVariables);
 
-                Map<String, String> worklfowVariables = workflowVariables == null ? null : Arrays.stream(workflowVariables)
-                        .map(o -> (Map<String, String>) o)
-                        .map(m -> {
-                            Map<String, String> variable = new HashMap<>();
-                            variable.put(m.get("variable"), AppUtil.processHashVariable(m.get("value"), a, null, null));
-                            return variable;
-                        })
-                        .collect(HashMap::new, Map::putAll, Map::putAll);
+                            // complete assignment
+                            workflowManager.assignmentForceComplete(a.getProcessDefId(), a.getProcessId(), a.getId(), username);
+                        });
+            } else {
+                getAssignments(rowKeys).forEach(a -> {
+                    if (!a.isAccepted()) {
+                        workflowManager.assignmentAccept(a.getActivityId());
+                    }
 
-                workflowManager.assignmentComplete(a.getActivityId(), worklfowVariables);
-            });
+                    workflowManager.assignmentComplete(a.getActivityId(), worklfowVariables);
+                });
+            }
         } else if("submit".equalsIgnoreCase(getPropertyString("action"))) {
             final Object[] formFields = (Object[]) getProperty("formFields");
 
@@ -168,7 +179,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                         String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
 
                         // check if target process is the same as current process, UNLESS BEING FORCED
-                        if (currentProcessDefId.equals(publishedProcessDefId) && !"true".equalsIgnoreCase(getPropertyString("forceAction"))) {
+                        if (currentProcessDefId.equals(publishedProcessDefId) && !isForced()) {
                             // no need to migrate current process
                             return null;
                         }
@@ -305,23 +316,48 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
      * @return
      */
     protected List<WorkflowAssignment> getAssignments(String[] rowKeys) {
-        ApplicationContext appContext = AppUtil.getApplicationContext();
-        WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
-        WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
+
+        return getRunningProcesses(rowKeys)
+                .stream()
+                .map(WorkflowProcess::getInstanceId)
+                .map(workflowManager::getAssignmentByProcess)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    protected Collection<WorkflowProcess> getRunningProcesses(String[] rowKeys) {
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
+        final WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
 
         return Arrays.stream(rowKeys)
                 .map(processLinkDao::getLinks)
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
                 .map(WorkflowProcessLink::getProcessId)
-                // filter by running process
-                .filter(pid -> {
-                    WorkflowProcess p = workflowManager.getRunningProcessById(pid);
-                    return Objects.nonNull(p) && !SharkConstants.STATE_CLOSED_ABORTED.equals(p.getState()) && !SharkConstants.STATE_CLOSED_TERMINATED.equals(p.getState());
-                })
-                .map(workflowManager::getAssignmentByProcess)
+                .map(workflowManager::getRunningProcessById)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
+    }
+
+
+    protected Collection<WorkflowActivity> getOpenActivities(String[] rowKeys) {
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
+
+        return getRunningProcesses(rowKeys)
+                .stream()
+                .map(p -> workflowManager.getActivityList(p.getInstanceId(), 0, Integer.MAX_VALUE, null, null))
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(a -> a.getState().startsWith("open"))
+                .collect(Collectors.toSet());
+    }
+
+    protected boolean isForced() {
+        return "true".equalsIgnoreCase(getPropertyString("forceAction"));
     }
 
     /**

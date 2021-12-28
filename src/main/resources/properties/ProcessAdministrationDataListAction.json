@@ -85,7 +85,7 @@
         label : '@@processAdministration.forceAction@@',
         type : 'checkbox',
         control_field : 'action',
-        control_value : 'migrate',
+        control_value_regex : 'migrate|complete',
         options : [
           {
             value : 'true',
