@@ -79,18 +79,18 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             return null;
         }
 
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
+        final AppDefinitionDao appDefinitionDao = (AppDefinitionDao) appContext.getBean("appDefinitionDao");
+        final AppDefinition currentAppDefinition = AppUtil.getCurrentAppDefinition();
+        final AppService appService = (AppService) appContext.getBean("appService");
+        final WorkflowUserManager workflowUserManager = (WorkflowUserManager) appContext.getBean("workflowUserManager");
+
+        workflowUserManager.setCurrentThreadUser(WorkflowUtil.getCurrentUsername());
+
         final DataListActionResult result = new DataListActionResult();
         result.setType(DataListActionResult.TYPE_REDIRECT);
         result.setUrl("REFERER");
-
-        ApplicationContext appContext = AppUtil.getApplicationContext();
-        WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
-        AppDefinitionDao appDefinitionDao = (AppDefinitionDao) appContext.getBean("appDefinitionDao");
-        AppDefinition currentAppDefinition = AppUtil.getCurrentAppDefinition();
-        AppService appService = (AppService) appContext.getBean("appService");
-
-        WorkflowUserManager workflowUserManager = (WorkflowUserManager) appContext.getBean("workflowUserManager");
-        workflowUserManager.setCurrentThreadUser(WorkflowUtil.getCurrentUsername());
 
         // complete assignment
         if("complete".equalsIgnoreCase(getPropertyString("action"))) {
@@ -101,8 +101,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     .collect(Collectors.toMap(m -> m.get("variable"), m -> AppUtil.processHashVariable(m.get("value"), null, null, null)));
 
             if(isForced()) {
-                LogUtil.info(getClassName(), "Forced");
                 final String username = WorkflowUtil.getCurrentUsername();
+
                 getOpenActivities(rowKeys)
                         .stream()
                         .filter(a -> a.getState().startsWith("open.not_running"))
@@ -337,6 +337,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
                 .map(WorkflowProcessLink::getProcessId)
+                .distinct()
                 .map(workflowManager::getRunningProcessById)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
