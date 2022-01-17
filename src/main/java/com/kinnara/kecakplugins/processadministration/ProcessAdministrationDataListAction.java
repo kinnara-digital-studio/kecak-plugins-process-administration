@@ -90,8 +90,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
         final DataListActionResult result = new DataListActionResult();
         result.setType(DataListActionResult.TYPE_REDIRECT);
-        result.setUrl("REFERER");
-
+//        result.setUrl("REFERER");
+        result.setUrl(this.getRedirectUrl());
         // complete assignment
         if("complete".equalsIgnoreCase(getPropertyString("action"))) {
             final Map<String, String> worklfowVariables = Optional.ofNullable((Object[]) getProperty("workflowVariables"))
