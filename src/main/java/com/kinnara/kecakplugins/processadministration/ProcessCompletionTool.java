@@ -263,6 +263,18 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 .orElse(getWorkflowAssignment(props).getProcessId());
     }
 
+    /**
+     * Parameters
+     * - loginAs
+     * - processId or processDefId - Current process ID
+     * - activityDefId
+     * - action
+     *
+     * @param request
+     * @param response
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
@@ -293,7 +305,12 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 JSONArray jsonAssignments = new JSONArray();
                 try {
                     JSONObject bodyPayload = getBodyPayload(request);
-                    String processId = getRequiredParameter(request, "processDefId");
+
+                    String processId = getOptionalParameter(request, "processDefId", "");
+                    if(processId.isEmpty()) {
+                        processId = getRequiredParameter(request, "processId");
+                    }
+
                     getAssignmentByProcess(processId, activityDefIds, loginAs)
                             .forEach(throwableConsumer(a -> {
                                 assignmentComplete(a, getWorkflowVariables(bodyPayload), loginAs);
@@ -444,16 +461,18 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     }
 
     private String getRequiredParameter(HttpServletRequest request, String parameterName) throws RestApiException {
-        return Optional.of(parameterName)
-                .map(request::getParameter)
-                .filter(not(String::isEmpty))
+        return optParameter(request, parameterName)
                 .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"));
     }
 
     private String getOptionalParameter(HttpServletRequest request, String parameterName, String defaultValue) {
+        return optParameter(request, parameterName)
+                .orElse(defaultValue);
+    }
+
+    private Optional<String> optParameter(HttpServletRequest request, String parameterName) {
         return Optional.of(parameterName)
                 .map(request::getParameter)
-                .filter(not(String::isEmpty))
-                .orElse(defaultValue);
+                .filter(not(String::isEmpty));
     }
 }
