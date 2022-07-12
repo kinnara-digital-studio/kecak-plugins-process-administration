@@ -1,5 +1,6 @@
 package com.kinnara.kecakplugins.processadministration;
 
+import com.kinnarastudio.commons.Declutter;
 import org.enhydra.shark.api.common.SharkConstants;
 import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.dao.FormDefinitionDao;
@@ -31,7 +32,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ProcessAdministrationDataListAction extends DataListActionDefault {
+public class ProcessAdministrationDataListAction extends DataListActionDefault implements Declutter {
 
     private final static Map<String, Form> formCache = new WeakHashMap<>();
 
@@ -94,14 +95,14 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 //        result.setUrl("REFERER");
         result.setUrl(this.getRedirectUrl());
         // complete assignment
-        if("complete".equalsIgnoreCase(getPropertyString("action"))) {
+        if ("complete".equalsIgnoreCase(getPropertyString("action"))) {
             final Map<String, String> worklfowVariables = Optional.ofNullable((Object[]) getProperty("workflowVariables"))
                     .map(Arrays::stream)
                     .orElseGet(Stream::empty)
                     .map(o -> (Map<String, String>) o)
                     .collect(Collectors.toMap(m -> m.get("variable"), m -> AppUtil.processHashVariable(m.get("value"), null, null, null)));
 
-            if(isForced()) {
+            if (isForced()) {
                 final String username = WorkflowUtil.getCurrentUsername();
 
                 getOpenActivities(rowKeys)
@@ -123,7 +124,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     workflowManager.assignmentComplete(a.getActivityId(), worklfowVariables);
                 });
             }
-        } else if("submit".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("submit".equalsIgnoreCase(getPropertyString("action"))) {
             final Object[] formFields = (Object[]) getProperty("formFields");
 
             getAssignments(rowKeys).forEach(a -> {
@@ -137,7 +138,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 formData.addRequestParameterValues(FormUtil.getElementParameterName(form) + "_SUBMITTED", new String[]{""});
                 formData.addRequestParameterValues(AssignmentCompleteButton.DEFAULT_ID, new String[]{"true"});
 
-                if(formFields != null) {
+                if (formFields != null) {
                     Arrays.stream(formFields)
                             .map(o -> (Map<String, String>) o)
                             .map(m -> {
@@ -149,33 +150,38 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                             .flatMap(Collection::stream)
                             .forEach(e -> {
                                 Element element = FormUtil.findElement(e.getKey(), form, formData, true);
-                                if(element != null) {
+                                if (element != null) {
                                     String parameterName = FormUtil.getElementParameterName(element);
                                     formData.addRequestParameterValues(parameterName, new String[]{e.getValue()});
                                 }
                             });
                 }
 
-                appService.completeAssignmentForm(form, a, formData, new HashMap<>()).getFormErrors().forEach((field, message) -> {
-                    LogUtil.error(getClassName(), null, "["+getPropertyString("action").toUpperCase()+"] Error form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field+"] message [" + message + "]");
-                });
+                appService
+                        .completeAssignmentForm(form, a, formData, new HashMap<>())
+                        .getFormErrors().forEach((field, message) -> {
+                            LogUtil.error(getClassName(), null, "[" + getPropertyString("action").toUpperCase() + "] Error form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field + "] message [" + message + "]");
+                        });
             });
-        } else if("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
             getAssignments(rowKeys)
                     .stream()
                     .map(WorkflowAssignment::getActivityId)
                     .forEach(workflowManager::reevaluateAssignmentsForActivity);
 
-        } else if("abort".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("abort".equalsIgnoreCase(getPropertyString("action"))) {
             getRunningProcess(rowKeys).stream()
                     .map(WorkflowProcess::getInstanceId)
                     .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
-        } else if("migrate".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("migrate".equalsIgnoreCase(getPropertyString("action"))) {
             final AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
             getRunningProcess(rowKeys).stream()
                     .map(this::getGreatGreatGrandParent)
+                    .map(WorkflowProcess::getInstanceId)
+                    .distinct()
+                    .map(workflowManager::getRunningProcessById)
                     .map(p -> {
                         String currentProcessDefId = p.getId();
                         String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
@@ -211,7 +217,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                     // reevaluate process
                     .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
 
-        } else if("prev".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("prev".equalsIgnoreCase(getPropertyString("action"))) {
             AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
             final String stepsVariable = getPropertyString("stepsVariable");
@@ -252,7 +258,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 result.setUrl("/web/console/monitor/process/graph/" + p);
             });
         } else {
-            LogUtil.warn(getClassName(), "Action ["+getPropertyString("action")+"] is not supported yet");
+            LogUtil.warn(getClassName(), "Action [" + getPropertyString("action") + "] is not supported yet");
         }
         return result;
     }
@@ -284,16 +290,16 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     @Override
     public String getPropertyOptions() {
-        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationDataListAction.json",null, false, "/messages/ProcessAdministration");
+        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationDataListAction.json", null, false, "/messages/ProcessAdministration");
     }
 
     private Form generateForm(AppDefinition appDef, String formDefId) {
         ApplicationContext appContext = AppUtil.getApplicationContext();
         FormService formService = (FormService) appContext.getBean("formService");
-        FormDefinitionDao formDefinitionDao = (FormDefinitionDao)appContext.getBean("formDefinitionDao");
+        FormDefinitionDao formDefinitionDao = (FormDefinitionDao) appContext.getBean("formDefinitionDao");
 
         // check in cache
-        if(formCache.containsKey(formDefId))
+        if (formCache.containsKey(formDefId))
             return formCache.get(formDefId);
 
         // proceed without cache
@@ -301,9 +307,9 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             FormDefinition formDef = formDefinitionDao.loadById(formDefId, appDef);
             if (formDef != null) {
                 String json = formDef.getJson();
-                Form form = (Form)formService.createElementFromJson(json);
+                Form form = (Form) formService.createElementFromJson(json);
 
-                if(form != null)
+                if (form != null)
                     formCache.put(formDefId, form);
 
                 return form;
@@ -314,6 +320,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     /**
      * get running assignments
+     *
      * @param rowKeys
      * @return
      */
@@ -365,10 +372,11 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
     /**
      * get running process
+     *
      * @param rowKeys
      * @return
      */
-    protected List<WorkflowProcess> getRunningProcess(String[] rowKeys) {
+    protected Collection<WorkflowProcess> getRunningProcess(String[] rowKeys) {
         ApplicationContext appContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
         WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
@@ -380,12 +388,13 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
 
                 .map(WorkflowProcessLink::getProcessId)
                 .filter(Objects::nonNull)
+                .distinct()
 
                 .map(workflowManager::getRunningProcessById)
                 .filter(Objects::nonNull)
                 .filter(p -> p.getState() != null && p.getState().startsWith("open"))
 
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
     }
 
     protected WorkflowProcess getGreatGreatGrandParent(@Nonnull WorkflowProcess process) {
@@ -395,6 +404,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 .map(workflowManager::getWorkflowProcessLink)
                 .map(WorkflowProcessLink::getParentProcessId)
                 .map(workflowManager::getRunningProcessById)
+                .filter(p -> p.getState().startsWith("open"))
 
                 // recursively looking for the further parent
                 .map(this::getGreatGreatGrandParent)
