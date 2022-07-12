@@ -25,6 +25,7 @@ import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.context.ApplicationContext;
 
+import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -174,6 +175,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
             final AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
             getRunningProcess(rowKeys).stream()
+                    .map(this::getGreatGreatGrandParent)
                     .map(p -> {
                         String currentProcessDefId = p.getId();
                         String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
@@ -372,7 +374,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
         WorkflowProcessLinkDao processLinkDao = (WorkflowProcessLinkDao) appContext.getBean("workflowProcessLinkDao");
 
         return Arrays.stream(rowKeys)
-                .flatMap(id -> processLinkDao.getLinks(id).stream())
+                .map(processLinkDao::getLinks)
+                .flatMap(Collection::stream)
                 .filter(Objects::nonNull)
 
                 .map(WorkflowProcessLink::getProcessId)
@@ -383,6 +386,20 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault {
                 .filter(p -> p.getState() != null && p.getState().startsWith("open"))
 
                 .collect(Collectors.toList());
+    }
+
+    protected WorkflowProcess getGreatGreatGrandParent(@Nonnull WorkflowProcess process) {
+        WorkflowManager workflowManager = (WorkflowManager) AppUtil.getApplicationContext().getBean("workflowManager");
+        return Optional.of(process)
+                .map(WorkflowProcess::getInstanceId)
+                .map(workflowManager::getWorkflowProcessLink)
+                .map(WorkflowProcessLink::getParentProcessId)
+                .map(workflowManager::getRunningProcessById)
+
+                // recursively looking for the further parent
+                .map(this::getGreatGreatGrandParent)
+
+                .orElse(process);
     }
 
     /**
