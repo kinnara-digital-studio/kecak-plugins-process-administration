@@ -215,7 +215,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     .filter(activity -> checkIfMigrationVisible(activity, publishedAppDefinition))
 
                     // reevaluate process
-                    .forEach(a -> workflowManager.reevaluateAssignmentsForActivity(a.getId()));
+                    .map(WorkflowActivity::getId)
+                    .forEach(workflowManager::reevaluateAssignmentsForActivity);
 
         } else if ("prev".equalsIgnoreCase(getPropertyString("action"))) {
             AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
