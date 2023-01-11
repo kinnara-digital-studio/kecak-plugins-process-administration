@@ -55,25 +55,25 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
 
     @Override
     public String getRenderPage() {
-        String tableName = this.getPropertyString("tableName");
-        String field = this.getPropertyString("fieldId");
-        String masterUsername = this.getPropertyString("masterUser");
-        String masterHash = this.getPropertyString("masterHash");
-        String histFormDefId = this.getPropertyString("histFormDefId");
-        String refFieldHist = this.getPropertyString("refField");
+        final String tableName = getPropertyString("tableName");
+        final String field = getPropertyString("fieldId");
+        final String masterUsername = getPropertyString("masterUser");
+        final String masterHash = getPropertyString("masterHash");
+        final String histFormDefId = getPropertyString("histFormDefId");
+        final String refFieldHist = getPropertyString("refField");
 
-        Map<String, Object> dataModel = new HashMap<String, Object>();
-        String templatePath = "ProcessReassignmentUserview.ftl";
+        final Map<String, Object> dataModel = new HashMap<>();
+        final String templatePath = "ProcessReassignmentUserview.ftl";
 
-        ApplicationContext appContext = AppUtil.getApplicationContext();
-        AppService appService = (AppService) appContext.getBean("appService");
-        PluginManager pluginManager = (PluginManager) appContext.getBean("pluginManager");
-        ExtDirectoryManager directoryManager = (ExtDirectoryManager) appContext.getBean("directoryManager");
-        DataSource ds = (DataSource) appContext.getBean("setupDataSource");
-        AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+        final ApplicationContext appContext = AppUtil.getApplicationContext();
+        final AppService appService = (AppService) appContext.getBean("appService");
+        final PluginManager pluginManager = (PluginManager) appContext.getBean("pluginManager");
+        final ExtDirectoryManager directoryManager = (ExtDirectoryManager) appContext.getBean("directoryManager");
+        final DataSource ds = (DataSource) appContext.getBean("setupDataSource");
+        final AppDefinition appDef = AppUtil.getCurrentAppDefinition();
 
         String historyTableName = null;
-        if (histFormDefId != null && !histFormDefId.equals("")) {
+        if (!histFormDefId.equals("")) {
             // Store to history
             historyTableName = appService.getFormTableName(appDef, histFormDefId);
         }
@@ -82,7 +82,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
         String select = "";
         String join = "";
 
-        if (tableName != null && !tableName.equals("") && field != null && !field.equals("")) {
+        if (!tableName.equals("") && !field.equals("")) {
             select = ", c_" + field + " ";
             join = "LEFT JOIN app_fd_" + tableName + " t ON t.id = p.id ";
         }
@@ -100,8 +100,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
 
         try(Connection con = ds.getConnection();
             PreparedStatement ps = con.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()
-        ) {
+            ResultSet rs = ps.executeQuery()) {
             List<ProcessMonitor> listPM = new ArrayList<>();
             while (rs.next()) {
                 ProcessMonitor pm = new ProcessMonitor();
@@ -144,7 +143,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
                 listPM.add(pm);
             }
             // Data tables Process monitor
-            List header = new ArrayList();
+            final List<String> header = new ArrayList<>();
             header.add("Process ID");
             header.add("Process Name");
             header.add("Requester");
@@ -171,7 +170,7 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
         for (User u : userList) {
             sbUser.append(u.getUsername());
             sbUser.append("'>");
-            sbUser.append(u.getUsername() + ' ');
+            sbUser.append(u.getUsername()).append(' ');
             sbUser.append("</option><option value='");
         }
         String replaceUser = sbUser.toString().replaceAll("<option value='$", "");
@@ -201,11 +200,13 @@ public class ProcessReassignmentUserviewMenu extends UserviewMenu implements Plu
     }
 
     public String getName() {
-        return getClass().getName();
+        return getLabel();
     }
 
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        return resourceBundle.getString("buildNumber");
     }
 
     public String getDescription() {

@@ -4,8 +4,10 @@ import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormUtil;
+import org.joget.plugin.base.PluginManager;
 
 import java.util.Objects;
+import java.util.ResourceBundle;
 
 public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptionsBinder, FormAjaxOptionsBinder {
     @Override
@@ -14,7 +16,7 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
     }
 
     @Override
-    public FormRowSet loadAjaxOptions(String[] strings, FormData formData) {
+    public FormRowSet loadAjaxOptions(String[] strings) {
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) AppUtil.getApplicationContext().getBean("appDefinitionDao");
         return appDefinitionDao.findByVersion(null, null, null, null, null, null, null, null)
                 .stream()
@@ -30,7 +32,8 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
 
     @Override
     public FormRowSet load(Element element, String primaryKey, FormData formData) {
-        return this.loadAjaxOptions(null, formData);
+        setFormData(formData);
+        return this.loadAjaxOptions(null);
     }
 
     @Override
@@ -40,7 +43,10 @@ public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptio
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override

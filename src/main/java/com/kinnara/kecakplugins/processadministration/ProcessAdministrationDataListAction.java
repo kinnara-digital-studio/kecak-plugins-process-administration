@@ -19,6 +19,7 @@ import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.workflow.lib.AssignmentCompleteButton;
 import org.joget.commons.util.LogUtil;
+import org.joget.plugin.base.PluginManager;
 import org.joget.workflow.model.*;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
@@ -40,7 +41,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
     public String getLinkLabel() {
         String label = getPropertyString("label");
         if (label == null || label.isEmpty()) {
-            label = getName();
+            label = getLabel();
         }
         return label;
     }
@@ -206,7 +207,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
 
                     .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] New process [" + pid + "]"))
 
-                    // get latest activity, assume only handle the latest one
+                    // get the latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
                     .filter(Objects::nonNull)
                     .flatMap(Collection::stream)
@@ -242,7 +243,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
 
                     .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] New process [" + pid + "]"))
 
-                    // get latest activity, assume only handle the latest one
+                    // get the latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
                     .filter(Objects::nonNull)
                     .flatMap(Collection::stream)
@@ -271,7 +272,10 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override

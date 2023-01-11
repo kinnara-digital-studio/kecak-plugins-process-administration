@@ -25,7 +25,9 @@ public class Activator implements BundleActivator {
         registrationList.add(context.registerService(ProcessAdministrationApi.class.getName(), new ProcessAdministrationApi(), null));
         registrationList.add(context.registerService(ProcessMonitoringDataListBinder.class.getName(), new ProcessMonitoringDataListBinder(), null));
         registrationList.add(context.registerService(ProcessCompletionTool.class.getName(), new ProcessCompletionTool(), null));
+        registrationList.add(context.registerService(ProcessCompletionScheduler.class.getName(), new ProcessCompletionScheduler(), null));
         registrationList.add(context.registerService(ProcessPerformerFormatter.class.getName(), new ProcessPerformerFormatter(), null));
+//        registrationList.add(context.registerService(ProcessReviveDataListAction.class.getName(), new ProcessReviveDataListAction(), null));
 
     }
 

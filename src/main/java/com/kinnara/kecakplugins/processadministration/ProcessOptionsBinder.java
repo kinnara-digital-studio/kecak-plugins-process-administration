@@ -1,10 +1,13 @@
 package com.kinnara.kecakplugins.processadministration;
 
+import com.kinnarastudio.commons.Try;
+import com.kinnarastudio.commons.jsonstream.JSONCollectors;
 import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormUtil;
+import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.json.JSONArray;
@@ -18,6 +21,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.ResourceBundle;
 
 public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsBinder, FormAjaxOptionsBinder, PluginWebSupport {
     @Override
@@ -27,7 +31,7 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     @Nonnull
-    public FormRowSet loadAjaxOptions(String[] dependencyValues, FormData formData) {
+    public FormRowSet loadAjaxOptions(String[] dependencyValues) {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) applicationContext.getBean("appDefinitionDao");
@@ -36,21 +40,20 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
                 .filter(Objects::nonNull)
                 .map(AppDefinition::getPackageDefinition)
                 .filter(Objects::nonNull)
-                .collect(FormRowSet::new, (rs, pd) -> {
-                    workflowManager.getProcessList(pd.getAppId(), pd.getVersion().toString())
-                            .forEach(p -> {
-                                FormRow row = new FormRow();
-                                row.put(FormUtil.PROPERTY_VALUE, p.getIdWithoutVersion());
-                                row.put(FormUtil.PROPERTY_LABEL, p.getName() + " (" + p.getIdWithoutVersion() + ")");
-                                row.put(FormUtil.PROPERTY_GROUPING, pd.getAppId());
-                                rs.add(row);
-                            });
-                }, FormRowSet::addAll);
+                .collect(FormRowSet::new, (rs, pd) -> workflowManager.getProcessList(pd.getAppId(), pd.getVersion().toString())
+                        .forEach(p -> {
+                            FormRow row = new FormRow();
+                            row.put(FormUtil.PROPERTY_VALUE, p.getIdWithoutVersion());
+                            row.put(FormUtil.PROPERTY_LABEL, p.getName() + " (" + p.getIdWithoutVersion() + ")");
+                            row.put(FormUtil.PROPERTY_GROUPING, pd.getAppId());
+                            rs.add(row);
+                        }), FormRowSet::addAll);
     }
 
     @Override
     public FormRowSet load(Element element, String primaryKey, FormData formData) {
-        return loadAjaxOptions(null, formData);
+        setFormData(formData);
+        return loadAjaxOptions(null);
     }
 
     @Override
@@ -60,7 +63,10 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override
@@ -85,26 +91,16 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        JSONArray result = loadAjaxOptions(null, null).stream()
-                .map(r -> {
-                    try {
-                        JSONObject jsonObject = new JSONObject();
-                        jsonObject.put(FormUtil.PROPERTY_VALUE, r.getProperty(FormUtil.PROPERTY_VALUE));
-                        jsonObject.put(FormUtil.PROPERTY_LABEL, r.getProperty(FormUtil.PROPERTY_LABEL));
-                        jsonObject.put(FormUtil.PROPERTY_GROUPING, r.getProperty(FormUtil.PROPERTY_GROUPING));
-                        return jsonObject;
-                    }catch (JSONException e) {
-                        return null;
-                    }
-                })
+        JSONArray result = loadAjaxOptions(null).stream()
+                .map(Try.onFunction(r -> {
+                    JSONObject jsonObject = new JSONObject();
+                    jsonObject.put(FormUtil.PROPERTY_VALUE, r.getProperty(FormUtil.PROPERTY_VALUE));
+                    jsonObject.put(FormUtil.PROPERTY_LABEL, r.getProperty(FormUtil.PROPERTY_LABEL));
+                    jsonObject.put(FormUtil.PROPERTY_GROUPING, r.getProperty(FormUtil.PROPERTY_GROUPING));
+                    return jsonObject;
+                }))
                 .filter(Objects::nonNull)
-                .collect(
-                        JSONArray::new,
-                        JSONArray::put,
-                        (a1, a2) -> {
-                            for(int i = 0, size = a2.length(); i < size; i++)
-                                a1.put(a2.optJSONObject(i));
-                        });
+                .collect(JSONCollectors.toJSONArray());
 
         response.getWriter().write(result.toString());
     }

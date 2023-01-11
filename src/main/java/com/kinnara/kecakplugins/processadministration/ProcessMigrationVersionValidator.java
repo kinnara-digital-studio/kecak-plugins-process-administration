@@ -1,11 +1,15 @@
 package com.kinnara.kecakplugins.processadministration;
 
 import org.joget.apps.app.service.AppPluginUtil;
+import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.model.FormValidator;
 import org.joget.apps.form.service.FormUtil;
+import org.joget.plugin.base.PluginManager;
+
+import java.util.ResourceBundle;
 
 public class ProcessMigrationVersionValidator extends FormValidator {
     @Override
@@ -25,12 +29,14 @@ public class ProcessMigrationVersionValidator extends FormValidator {
 
     @Override
     public String getName() {
-        return getClass().getName();
+        return getLabel();
     }
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        return resourceBundle.getString("buildNumber");
     }
 
     @Override

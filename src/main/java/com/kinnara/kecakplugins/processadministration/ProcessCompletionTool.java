@@ -3,6 +3,7 @@ package com.kinnara.kecakplugins.processadministration;
 import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
 import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
 import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
+import com.kinnarastudio.commons.Try;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageActivityForm;
 import org.joget.apps.app.model.PackageDefinition;
@@ -15,6 +16,7 @@ import org.joget.apps.form.service.FormUtil;
 import org.joget.commons.util.LogUtil;
 import org.joget.directory.model.User;
 import org.joget.plugin.base.DefaultApplicationPlugin;
+import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.WorkflowActivity;
 import org.joget.workflow.model.WorkflowAssignment;
@@ -52,7 +54,10 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override
@@ -71,15 +76,16 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             getAsUser(props)
                     .stream()
                     .sorted()
-                    .forEach(throwableConsumer(currentUser -> getAssignmentByProcess(processInstanceId, getActivities(props), currentUser)
-                    .forEach(throwableConsumer(assignment -> assignmentComplete(assignment, getWorkflowVariables(props), currentUser)))));
+                    .forEach(Try.onConsumer(currentUser -> getAssignmentByProcess(processInstanceId, getActivities(props), currentUser)
+                            .forEach(Try.onConsumer(assignment -> assignmentComplete(assignment, getWorkflowVariables(props), currentUser)))
+                    ));
         } catch (ProcessException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
         }
         return null;
     }
 
-    private void assignmentComplete(@Nonnull WorkflowAssignment assignment, Map<String, String> variableMap, String username) throws ProcessException {
+    protected void assignmentComplete(@Nonnull WorkflowAssignment assignment, Map<String, String> variableMap, String username) throws ProcessException {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
         WorkflowUserManager workflowUserManager = (WorkflowUserManager) applicationContext.getBean("workflowUserManager");
@@ -186,10 +192,10 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
         return getParticipants(props)
                 .stream()
-                .map(throwableFunction(it -> getUsersFromParticipant(assignment, it)))
+                .map(Try.onFunction(it -> getUsersFromParticipant(assignment, it)))
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
-                .map(throwableFunction(this::getUser))
+                .map(Try.onFunction(this::getUser))
                 .map(User::getUsername)
                 .collect(Collectors.toSet());
     }

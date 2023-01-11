@@ -1,0 +1,53 @@
+[
+  {
+    "title": "@@processAdministration.processCompletionToolTitle@@",
+    "properties": [
+      {
+        "name" : "processDefId",
+        "label" : "@@userview.datalistinboxmenu.process@@",
+        "type" : "selectbox",
+        "required" : "false",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getProcesses"
+      },
+      {
+        "name" : "activityDefIds",
+        "label" : "@@processAdministration.activities@@",
+        "type" : "multiselect",
+        "required" : "true",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getActivities",
+        "options_ajax_on_change" : "processDefId"
+      },
+      {
+        "name": "processInstanceId",
+        "label" : "@@processAdministration.processInstanceId@@",
+        "description" : "@@processAdministration.processInstanceId.desc@@",
+        "type" : "textfield"
+      },
+      {
+        "name" : "participants",
+        "label" : "@@processAdministration.participants@@",
+        "type" : "multiselect",
+        "required" : "true",
+        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getParticipants",
+        "options_ajax_on_change" : "processDefId"
+      },
+      {
+        "name" : "workflowVariables",
+        "label" : "@@processAdministration.workflowVariables@@",
+        "type": "grid",
+        "columns": [
+          {
+            "key": "variable",
+            "label": "@@processAdministration.workflowVariables.variable@@",
+            "required": "true"
+          },
+          {
+            "key": "value",
+            "label": "@@processAdministration.workflowVariables.value@@"
+          }
+        ]
+      }
+    ]
+  }
+
+]

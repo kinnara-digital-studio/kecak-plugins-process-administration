@@ -10,11 +10,13 @@ import org.joget.apps.form.model.FormData;
 import org.joget.apps.form.model.FormRow;
 import org.joget.apps.form.model.FormRowSet;
 import org.joget.commons.util.LogUtil;
+import org.joget.plugin.base.PluginManager;
 import org.joget.workflow.model.WorkflowProcess;
 import org.joget.workflow.model.service.WorkflowManager;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 public class ProcessMigrationStoreBinder extends WorkflowFormBinder {
@@ -30,7 +32,9 @@ public class ProcessMigrationStoreBinder extends WorkflowFormBinder {
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        return resourceBundle.getString("buildNumber");
     }
 
     @Override
