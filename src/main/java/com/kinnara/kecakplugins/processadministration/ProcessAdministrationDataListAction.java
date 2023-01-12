@@ -219,42 +219,6 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     .map(WorkflowActivity::getId)
                     .forEach(workflowManager::reevaluateAssignmentsForActivity);
 
-        } else if ("prev".equalsIgnoreCase(getPropertyString("action"))) {
-            AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
-
-            final String stepsVariable = getPropertyString("stepsVariable");
-
-            getRunningProcess(rowKeys).stream()
-                    .map(p -> {
-                        String currentProcessDefId = p.getId();
-                        String publishedProcessDefId = currentProcessDefId.replaceAll("#[0-9]+#", "#" + publishedAppDefinition.getPackageDefinition().getVersion() + "#");
-
-                        LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] Stepping Back process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
-                        return workflowManager.assignmentStepBack(p.getInstanceId());
-                    })
-                    .filter(Objects::nonNull)
-
-                    // get process from process result
-                    .map(WorkflowProcessResult::getProcess)
-                    .filter(Objects::nonNull)
-
-                    .map(WorkflowProcess::getInstanceId)
-                    .filter(Objects::nonNull)
-
-                    .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] New process [" + pid + "]"))
-
-                    // get the latest activity, assume only handle the latest one
-                    .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
-                    .filter(Objects::nonNull)
-                    .flatMap(Collection::stream)
-
-                    // check status = open
-                    .filter(activity -> activity.getState().startsWith(SharkConstants.STATEPREFIX_OPEN))
-
-                    // reevaluate process
-                    .forEach(a -> {
-                        workflowManager.reevaluateAssignmentsForActivity(a.getId());
-                    });
         } else if ("viewGraph".equalsIgnoreCase(getPropertyString("action"))) {
             getRunningProcess(rowKeys).stream().map(WorkflowProcess::getInstanceId).forEach((p) -> {
                 result.setUrl("/web/console/monitor/process/graph/" + p);
