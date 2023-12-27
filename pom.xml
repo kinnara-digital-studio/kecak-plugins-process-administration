@@ -156,7 +156,7 @@
         <dependency>
             <groupId>org.joget</groupId>
             <artifactId>wflow-core</artifactId>
-            <version>7.0-SNAPSHOT</version>
+            <version>5.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <!-- Change plugin specific dependencies here -->
