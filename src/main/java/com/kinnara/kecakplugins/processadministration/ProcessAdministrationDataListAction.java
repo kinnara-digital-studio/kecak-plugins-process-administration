@@ -373,7 +373,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 .map(workflowManager::getWorkflowProcessLink)
                 .map(WorkflowProcessLink::getParentProcessId)
                 .map(workflowManager::getRunningProcessById)
-                .filter(p -> p.getState().startsWith("open"))
+                .filter(p -> Optional.of(p).map(WorkflowProcess::getState).map(s -> s.startsWith("open")).orElse(false))
 
                 // recursively looking for the further parent
                 .map(this::getGreatGreatGrandParent)

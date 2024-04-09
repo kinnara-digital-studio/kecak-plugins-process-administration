@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Administrator Menu",
+    "properties": [
+      {
+        "name" : "id",
+        "label" : "ID",
+        "type" : "hidden"
+      },
+      {
+        "name" : "customId",
+        "label" : "@@userview.inboxmenu.customId@@",
+        "type" : "textfield",
+        "regex_validation" : "^[a-zA-Z0-9_]+$",
+        "validation_message" : "@@userview.inboxmenu.invalidId@@"
+      },
+      {
+        "name" : "label",
+        "label" : "@@userview.inboxmenu.label@@",
+        "type" : "textfield",
+        "required" : "True",
+        "value" : "List"
+      },
+      {
+        "name": "menuPlugin",
+        "type": "elementselect",
+        "label": "Menu Plugin",
+        "options_ajax" : "[CONTEXT_PATH]/web/property/json/getElements?classname=org.joget.apps.userview.model.UserviewMenu",
+        "url" : "[CONTEXT_PATH]/web/property/json[APP_PATH]/getPropertyOptions"
+      },
+      {
+        "name": "loginAs",
+        "type": "textfield",
+        "label": "Login As"
+      }
+    ]
+  }
+]
