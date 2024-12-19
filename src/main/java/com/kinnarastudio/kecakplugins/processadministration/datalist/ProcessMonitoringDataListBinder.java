@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.datalist;
 
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppPluginUtil;
@@ -6,7 +6,6 @@ import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.*;
 import org.joget.commons.util.TimeZoneUtil;
 import org.joget.plugin.base.PluginManager;
-import org.joget.workflow.model.WorkflowActivity;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.context.ApplicationContext;

@@ -1,6 +1,6 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.datalist;
 
-import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
+import com.kinnarastudio.kecakplugins.processadministration.exception.ProcessException;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListActionDefault;

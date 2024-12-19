@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.app;
 
 import org.joget.apps.app.service.AppUtil;
 import org.joget.plugin.base.PluginManager;

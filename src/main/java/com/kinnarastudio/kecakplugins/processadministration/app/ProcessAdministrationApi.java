@@ -1,6 +1,6 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.app;
 
-import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
+import com.kinnarastudio.kecakplugins.processadministration.exception.RestApiException;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.userview.model.UserviewPermission;
 import org.joget.commons.util.LogUtil;

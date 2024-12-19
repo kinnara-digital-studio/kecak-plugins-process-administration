@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.form;
 
 import com.kinnarastudio.commons.Try;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
@@ -11,7 +11,6 @@ import org.joget.plugin.base.PluginManager;
 import org.joget.plugin.base.PluginWebSupport;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 

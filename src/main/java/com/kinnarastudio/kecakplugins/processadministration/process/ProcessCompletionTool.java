@@ -1,8 +1,8 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.process;
 
-import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
-import com.kinnara.kecakplugins.processadministration.exception.RestApiException;
-import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
+import com.kinnarastudio.kecakplugins.processadministration.exception.ProcessException;
+import com.kinnarastudio.kecakplugins.processadministration.exception.RestApiException;
+import com.kinnarastudio.kecakplugins.processadministration.lib.ProcessUtils;
 import com.kinnarastudio.commons.Try;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageActivityForm;

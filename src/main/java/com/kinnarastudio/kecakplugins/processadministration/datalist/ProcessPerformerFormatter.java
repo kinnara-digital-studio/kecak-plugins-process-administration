@@ -1,6 +1,7 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.datalist;
 
-import com.kinnara.kecakplugins.processadministration.lib.ProcessUtils;
+import com.kinnarastudio.kecakplugins.processadministration.lib.ProcessUtils;
+import com.kinnarastudio.kecakplugins.processadministration.process.ProcessCompletionTool;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListColumn;

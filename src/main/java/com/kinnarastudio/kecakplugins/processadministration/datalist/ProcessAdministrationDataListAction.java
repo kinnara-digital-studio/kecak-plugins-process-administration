@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.datalist;
 
 import com.kinnarastudio.commons.Declutter;
 import org.enhydra.shark.api.common.SharkConstants;

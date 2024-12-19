@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration.exception;
+package com.kinnarastudio.kecakplugins.processadministration.exception;
 
 public class ProcessException extends Exception {
     public ProcessException(String message) {

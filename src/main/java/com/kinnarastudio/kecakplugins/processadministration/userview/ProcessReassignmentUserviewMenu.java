@@ -3,9 +3,10 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.userview;
 
-import com.kinnara.kecakplugins.processadministration.model.ProcessMonitor;
+import com.kinnarastudio.kecakplugins.processadministration.form.ProcessOptionsBinder;
+import com.kinnarastudio.kecakplugins.processadministration.model.ProcessMonitor;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppService;

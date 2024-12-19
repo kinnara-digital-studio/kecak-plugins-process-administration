@@ -1,4 +1,4 @@
-package com.kinnara.kecakplugins.processadministration.exception;
+package com.kinnarastudio.kecakplugins.processadministration.exception;
 
 public class RestApiException extends Exception {
     private int httpErrorCode;

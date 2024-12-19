@@ -1,16 +1,15 @@
-package com.kinnara.kecakplugins.processadministration;
+package com.kinnarastudio.kecakplugins.processadministration.form;
 
 import org.joget.apps.app.dao.AppDefinitionDao;
-import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
 import org.joget.apps.form.service.FormUtil;
+import org.joget.plugin.base.PluginManager;
 
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
+import java.util.ResourceBundle;
 
-public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinder, FormAjaxOptionsBinder {
+public class AppVersionOptionsBinder extends FormBinder implements FormLoadOptionsBinder, FormAjaxOptionsBinder {
     @Override
     public boolean useAjax() {
         return false;
@@ -19,21 +18,20 @@ public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinde
     @Override
     public FormRowSet loadAjaxOptions(String[] strings) {
         AppDefinitionDao appDefinitionDao = (AppDefinitionDao) AppUtil.getApplicationContext().getBean("appDefinitionDao");
-        final Set<String> duplicate = new HashSet<>();
         return appDefinitionDao.findByVersion(null, null, null, null, null, null, null, null)
                 .stream()
                 .filter(Objects::nonNull)
-                .filter(p -> duplicate.add(p.getAppId()))
-                .collect(FormRowSet::new, (rs, p) -> {
+                .collect(FormRowSet::new, (rowSet, appDefinition) -> {
                     FormRow row = new FormRow();
-                    row.put(FormUtil.PROPERTY_VALUE, p.getAppId().trim());
-                    row.put(FormUtil.PROPERTY_LABEL, p.getName() + " ("+p.getAppId()+")");
-                    rs.add(row);
+                    row.put(FormUtil.PROPERTY_VALUE, appDefinition.getVersion());
+                    row.put(FormUtil.PROPERTY_LABEL, "v" + appDefinition.getVersion() + (appDefinition.isPublished() ? " (Published)" : ""));
+                    row.put(FormUtil.PROPERTY_GROUPING, appDefinition.getAppId().trim());
+                    rowSet.add(row);
                 }, FormRowSet::addAll);
     }
 
     @Override
-    public FormRowSet load(Element element, String s, FormData formData) {
+    public FormRowSet load(Element element, String primaryKey, FormData formData) {
         setFormData(formData);
         return this.loadAjaxOptions(null);
     }
@@ -45,7 +43,10 @@ public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinde
 
     @Override
     public String getVersion() {
-        return getClass().getPackage().getImplementationVersion();
+        PluginManager pluginManager = (PluginManager) AppUtil.getApplicationContext().getBean("pluginManager");
+        ResourceBundle resourceBundle = pluginManager.getPluginMessageBundle(getClassName(), "/messages/BuildNumber");
+        String buildNumber = resourceBundle.getString("buildNumber");
+        return buildNumber;
     }
 
     @Override
@@ -55,7 +56,7 @@ public class AppOptionsBinder extends FormBinder implements FormLoadOptionsBinde
 
     @Override
     public String getLabel() {
-        return "Process Admin - App Options Binder";
+        return "Process Admin - App Version Options Binder";
     }
 
     @Override

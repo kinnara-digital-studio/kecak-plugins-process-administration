@@ -1,6 +1,6 @@
-package com.kinnara.kecakplugins.processadministration.lib;
+package com.kinnarastudio.kecakplugins.processadministration.lib;
 
-import com.kinnara.kecakplugins.processadministration.exception.ProcessException;
+import com.kinnarastudio.kecakplugins.processadministration.exception.ProcessException;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
 import org.joget.apps.app.service.AppService;
