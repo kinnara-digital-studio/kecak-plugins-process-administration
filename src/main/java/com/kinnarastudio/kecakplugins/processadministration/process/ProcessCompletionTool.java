@@ -1,7 +1,8 @@
 package com.kinnarastudio.kecakplugins.processadministration.process;
 
+import com.kinnarastudio.commons.jsonstream.JSONStream;
+import com.kinnarastudio.commons.jsonstream.model.JSONObjectEntry;
 import com.kinnarastudio.kecakplugins.processadministration.exception.ProcessException;
-import com.kinnarastudio.kecakplugins.processadministration.exception.RestApiException;
 import com.kinnarastudio.kecakplugins.processadministration.lib.ProcessUtils;
 import com.kinnarastudio.commons.Try;
 import org.joget.apps.app.model.AppDefinition;
@@ -28,6 +29,8 @@ import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.kecak.apps.exception.ApiException;
+import org.kecak.apps.form.service.FormDataUtil;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
@@ -107,7 +110,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
             }
             workflowManager.assignmentComplete(assignment.getActivityId(), variableMap);
         } else {
-            elementStream(form, formData)
+            FormDataUtil.elementStream(form, formData)
                     .filter(e -> variableMap.containsKey(e.getPropertyString("workflowVariable")))
                     .forEach(element -> {
                         String variableName = element.getPropertyString("workflowVariable");
@@ -249,8 +252,8 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
     }
 
     private Map<String, String> getWorkflowVariables(@Nonnull JSONObject jsonObject) {
-        return jsonKeyStream(jsonObject)
-                .collect(Collectors.toMap(String::valueOf, jsonObject::optString));
+        return JSONStream.of(jsonObject, Try.onBiFunction(JSONObject::getString))
+                .collect(Collectors.toMap(JSONObjectEntry::getKey, JSONObjectEntry::getValue));
     }
 
     /**
@@ -286,14 +289,14 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
         try {
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole("ROLE_ADMIN");
             if (!isAdmin) {
-                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "User is not an admin");
+                throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "User is not an admin");
             }
 
             AppDefinition appDef = AppUtil.getCurrentAppDefinition();
             String action = getRequiredParameter(request, "action");
             String appId = Optional.ofNullable(appDef)
                     .map(AppDefinition::getAppId)
-                    .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_NOT_FOUND, "Application not found"));
+                    .orElseThrow(() -> new ApiException(HttpServletResponse.SC_NOT_FOUND, "Application not found"));
             ApplicationContext ac = AppUtil.getApplicationContext();
             AppService appService = (AppService) ac.getBean("appService");
             WorkflowManager workflowManager = (WorkflowManager) ac.getBean("workflowManager");
@@ -302,7 +305,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 LogUtil.info(getClass().getName(), "Executing plugin Rest API [" + request.getRequestURI() + "] in method [" + request.getMethod() + "] as [" + WorkflowUtil.getCurrentUsername() + "]");
 
                 if(!"POST".equalsIgnoreCase(request.getMethod())) {
-                    throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Cannot accept method ["+request.getMethod()+"]");
+                    throw new ApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Cannot accept method ["+request.getMethod()+"]");
                 }
 
                 Collection<String> activityDefIds = getRequiredParameterValues(request, "activityDefId");
@@ -323,7 +326,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                                 jsonAssignments.put(a.getActivityId());
                             }));
                 } catch (ProcessException e) {
-                    throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, e.getMessage(), e);
+                    throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, e);
                 }
 
                 try {
@@ -347,7 +350,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                 try {
                     JSONArray jsonArray = new JSONArray();
                     PackageDefinition packageDefinition = appDef.getPackageDefinition();
-                    Long packageVersion = packageDefinition != null ? packageDefinition.getVersion() : new Long(1);
+                    Long packageVersion = packageDefinition != null ? packageDefinition.getVersion() : 1L;
                     Collection<WorkflowProcess> processList = workflowManager.getProcessList(appId, packageVersion.toString());
                     HashMap<String, String> empty = new HashMap<>();
                     empty.put("value", "");
@@ -361,7 +364,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
                     }
                     jsonArray.write(response.getWriter());
                 } catch (Exception ex) {
-                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get Process options Error!", ex);
+                    throw new ApiException(HttpServletResponse.SC_FORBIDDEN, ex);
                 }
             }
 
@@ -387,7 +390,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get activity options Error!", ex);
+                    throw new ApiException(HttpServletResponse.SC_FORBIDDEN, ex);
                 }
             }
 
@@ -414,7 +417,7 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get participants options Error!", ex);
+                    throw new ApiException(HttpServletResponse.SC_FORBIDDEN,  ex);
                 }
             }
 
@@ -441,34 +444,34 @@ public class ProcessCompletionTool extends DefaultApplicationPlugin implements P
 
                     jsonArray.write(response.getWriter());
                 } catch (JSONException ex) {
-                    throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Get variables options Error!", ex);
+                    throw new ApiException(HttpServletResponse.SC_FORBIDDEN, ex);
                 }
             }
 
             // other actions
             else {
-                throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Action ["+action+"] is not supported");
+                throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Action ["+action+"] is not supported");
             }
-        } catch (RestApiException e) {
+        } catch (ApiException e) {
             LogUtil.error(getClass().getName(), e, e.getMessage());
             response.sendError(e.getErrorCode(), e.getMessage());
         }
     }
 
-    private Collection<String> getRequiredParameterValues(HttpServletRequest request, String parameterName) throws RestApiException {
+    private Collection<String> getRequiredParameterValues(HttpServletRequest request, String parameterName) throws ApiException {
         return Optional.of(parameterName)
                 .map(request::getParameterValues)
                 .map(Arrays::stream)
-                .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"))
+                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"))
                 .filter(not(String::isEmpty))
                 .map(it -> it.split("[;,]"))
                 .flatMap(Arrays::stream)
                 .collect(Collectors.toSet());
     }
 
-    private String getRequiredParameter(HttpServletRequest request, String parameterName) throws RestApiException {
+    private String getRequiredParameter(HttpServletRequest request, String parameterName) throws ApiException {
         return optParameter(request, parameterName)
-                .orElseThrow(() -> new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"));
+                .orElseThrow(() -> new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Required parameter ["+parameterName+"] is not provided"));
     }
 
     private String getOptionalParameter(HttpServletRequest request, String parameterName, String defaultValue) {

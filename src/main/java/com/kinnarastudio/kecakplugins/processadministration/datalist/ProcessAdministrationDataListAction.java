@@ -98,23 +98,24 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
         // complete assignment
         if ("complete".equalsIgnoreCase(getPropertyString("action"))) {
             final Map<String, String> worklfowVariables = Optional.ofNullable((Object[]) getProperty("workflowVariables"))
-                    .map(Arrays::stream)
-                    .orElseGet(Stream::empty)
+                    .stream()
+                    .flatMap(Arrays::stream)
                     .map(o -> (Map<String, String>) o)
                     .collect(Collectors.toMap(m -> m.get("variable"), m -> AppUtil.processHashVariable(m.get("value"), null, null, null)));
 
             if (isForced()) {
-                final String username = WorkflowUtil.getCurrentUsername();
+                final String currentUsername = WorkflowUtil.getCurrentUsername();
 
                 getOpenActivities(rowKeys)
                         .stream()
                         .filter(a -> a.getState().startsWith("open.not_running"))
                         .forEach(a -> {
+                            final String activityId = a.getId();
                             // set workflow variables
-                            workflowManager.activityVariables(a.getId(), worklfowVariables);
+                            workflowManager.activityVariables(activityId, worklfowVariables);
 
                             // complete assignment
-                            workflowManager.assignmentForceComplete(a.getProcessDefId(), a.getProcessId(), a.getId(), username);
+                            workflowManager.assignmentForceComplete(a.getProcessDefId(), a.getProcessId(), activityId, currentUsername);
                         });
             } else {
                 getAssignments(rowKeys).forEach(a -> {

@@ -1,6 +1,5 @@
 package com.kinnarastudio.kecakplugins.processadministration.app;
 
-import com.kinnarastudio.kecakplugins.processadministration.exception.RestApiException;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.userview.model.UserviewPermission;
 import org.joget.commons.util.LogUtil;
@@ -19,6 +18,7 @@ import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.kecak.apps.exception.ApiException;
 import org.springframework.context.ApplicationContext;
 
 import javax.servlet.ServletException;
@@ -52,13 +52,13 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
 
         try {
             if(!method.equalsIgnoreCase("POST")) {
-                throw new RestApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Only accept POST method");
+                throw new ApiException(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "Only accept POST method");
             }
 
             UserviewPermission permission = generatePermission();
             boolean isAdmin = WorkflowUtil.isCurrentUserInRole(WorkflowUserManager.ROLE_ADMIN);
             if((permission == null && !isAdmin) || (permission != null &&permission.isAuthorize())) {
-                throw new RestApiException(HttpServletResponse.SC_UNAUTHORIZED, "Current user ["+ WorkflowUtil.getCurrentUsername() +"] is not authorized");
+                throw new ApiException(HttpServletResponse.SC_UNAUTHORIZED, "Current user ["+ WorkflowUtil.getCurrentUsername() +"] is not authorized");
             }
 
             String loginAs = request.getParameter("loginAs");
@@ -70,7 +70,7 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
             if("complete".equalsIgnoreCase(action)) {
                 String[] processIds = request.getParameterValues("processId");
                 if(processIds == null || processIds.length == 0) {
-                    throw new RestApiException(HttpServletResponse.SC_BAD_REQUEST, "Requires parameter [processId]");
+                    throw new ApiException(HttpServletResponse.SC_BAD_REQUEST, "Requires parameter [processId]");
                 }
 
                 final Stream.Builder<String> variableStreamBuilder = Stream.builder();
@@ -133,12 +133,12 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
                     response.getWriter().write(responseBody.toString());
 
                 } catch (JSONException e) {
-                    throw new RestApiException(HttpServletResponse.SC_NOT_ACCEPTABLE, e.getMessage());
+                    throw new ApiException(HttpServletResponse.SC_NOT_ACCEPTABLE, e.getMessage());
                 }
             } else {
-                throw new RestApiException(HttpServletResponse.SC_FORBIDDEN, "Action [" + action + "] not available");
+                throw new ApiException(HttpServletResponse.SC_FORBIDDEN, "Action [" + action + "] not available");
             }
-        } catch (RestApiException e) {
+        } catch (ApiException e) {
             response.sendError(e.getErrorCode(), e.getMessage());
             LogUtil.error(getClassName(), e, e.getMessage());
         }
@@ -146,7 +146,7 @@ public class ProcessAdministrationApi extends DefaultApplicationPlugin implement
 
     @Override
     public String getName() {
-        return getClass().getName();
+        return getLabel();
     }
 
     @Override

@@ -5,8 +5,6 @@ import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.model.PackageDefinition;
 import org.joget.apps.app.service.AppService;
 import org.joget.apps.app.service.AppUtil;
-import org.joget.apps.form.model.Element;
-import org.joget.apps.form.model.FormData;
 import org.joget.commons.util.LogUtil;
 import org.joget.directory.model.User;
 import org.joget.directory.model.service.DirectoryManager;
@@ -18,7 +16,6 @@ import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
-import org.json.JSONObject;
 import org.springframework.context.ApplicationContext;
 
 import javax.annotation.Nonnull;
@@ -27,7 +24,6 @@ import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 public interface ProcessUtils {
 
@@ -56,32 +52,6 @@ public interface ProcessUtils {
     }
 
     /**
-     * Stream element children
-     *
-     * @param element
-     * @return
-     */
-    @Nonnull
-    default Stream<Element> elementStream(@Nonnull Element element, FormData formData) {
-        if(!element.isAuthorize(formData)) {
-            return Stream.empty();
-        }
-
-        Stream<Element> stream = Stream.of(element);
-        for (Element child : element.getChildren()) {
-            stream = Stream.concat(stream, elementStream(child, formData));
-        }
-        return stream;
-    }
-
-    default Stream<String> jsonKeyStream(@Nonnull JSONObject jsonObject) {
-        Objects.requireNonNull(jsonObject);
-        Iterator<String> iterator = jsonObject.keys();
-        Spliterator<String> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED);
-        return StreamSupport.stream(spliterator, true);
-    }
-
-    /**
      *
      *
      * @param processId
@@ -97,8 +67,8 @@ public interface ProcessUtils {
 
         return Optional.of(processId)
                 .map(workflowProcessLinkDao::getLinks)
-                .map(Collection::stream)
-                .orElseGet(Stream::empty)
+                .stream()
+                .flatMap(Collection::stream)
                 .map(WorkflowProcessLink::getProcessId)
                 .map(s -> wfManager.getActivityList(s, null, Integer.MAX_VALUE, "id", null))
                 .filter(Objects::nonNull)
