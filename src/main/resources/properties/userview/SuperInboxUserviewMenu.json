@@ -1,0 +1,18 @@
+ [
+   {
+     "title": "Super Inbox",
+     "properties": [
+       {
+         "name": "ignoreValidation",
+         "label": "Ignore validation when completing assignment",
+         "type": "checkbox",
+         "options": [
+           {
+             "value": "true",
+             "label": ""
+           }
+         ]
+       }
+     ]
+   }
+ ]
