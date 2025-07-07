@@ -3,11 +3,9 @@
     "title" : "Edit @@processAdministration.processAdministrationTool@@",
     "properties" : [
       {
-        "name" : "processId",
-        "label" : "@@userview.datalistinboxmenu.process@@",
-        "type" : "selectbox",
-        "required" : "false",
-        "options_ajax" : "[CONTEXT_PATH]/web/json/app[APP_PATH]/plugin/%s/service?action=getProcesses"
+        "name" : "processInstanceId",
+        "label" : "@@processAdministration.processInstanceId@@",
+        "type" : "textfield"
       },
       {
         "name" : "action",

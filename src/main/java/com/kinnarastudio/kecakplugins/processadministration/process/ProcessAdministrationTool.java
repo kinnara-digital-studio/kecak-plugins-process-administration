@@ -14,6 +14,8 @@ import org.joget.workflow.model.service.WorkflowManager;
 import org.springframework.context.ApplicationContext;
 
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ProcessAdministrationTool extends DefaultApplicationPlugin {
@@ -44,7 +46,8 @@ public class ProcessAdministrationTool extends DefaultApplicationPlugin {
         AppDefinition currentAppDefinition = AppUtil.getCurrentAppDefinition();
 
 
-        Stream<String> processStream = props.get("processId") == null || props.get("processId").toString().isEmpty() ? Stream.of(wfAssignment.getProcessId()) : Arrays.stream(props.get("processId").toString().split(";"));
+        final Collection<String> processInstances = getProcessInstances();
+        final Stream<String> processStream = processInstances.isEmpty() ? Stream.of(wfAssignment.getProcessId()) : processInstances.stream();
 
         if("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
             processStream
@@ -132,6 +135,19 @@ public class ProcessAdministrationTool extends DefaultApplicationPlugin {
 
     @Override
     public String getPropertyOptions() {
-        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationTool.json",null, false, "/messages/ProcessAdministration");
+        final Object[] args = new Object[] {
+                getClassName()
+        };
+        return AppUtil.readPluginResource(getClassName(), "/properties/ProcessAdministrationTool.json",args, false, "/messages/ProcessAdministration");
+    }
+
+    protected Set<String> getProcessInstances() {
+        return Optional.of("processInstanceId")
+                .map(this::getPropertyString)
+                .map(s -> s.split(";"))
+                .stream()
+                .flatMap(Arrays::stream)
+                .filter(Predicate.not(String::isEmpty))
+                .collect(Collectors.toSet());
     }
 }

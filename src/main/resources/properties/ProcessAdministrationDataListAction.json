@@ -1,105 +1,105 @@
 [
   {
-    title : 'Edit @@processAdministration.processAdministrationDataListAction@@',
-    properties : [
+    "title" : "Edit @@processAdministration.processAdministrationDataListAction@@",
+    "properties" : [
       {
-        name : 'label',
-        label : '@@processAdministration.label@@',
-        type : 'textfield'
+        "name" : "label",
+        "label" : "@@processAdministration.label@@",
+        "type" : "textfield"
       },
       {
-        name : 'confirmation',
-        label : '@@processAdministration.confirmationMessage@@',
-        type : 'textfield'
+        "name" : "confirmation",
+        "label" : "@@processAdministration.confirmationMessage@@",
+        "type" : "textfield"
       },
       {
-        name : 'action',
-        label : '@@processAdministration.action@@',
-        type : 'selectbox',
-        required : 'true',
-        options : [
+        "name" : "action",
+        "label" : "@@processAdministration.action@@",
+        "type" : "selectbox",
+        "required" : "true",
+        "options" : [
           {
-            value : 'complete',
-            label : '@@processAdministration.complete@@'
+            "value" : "complete",
+            "label" : "@@processAdministration.complete@@"
           },
           {
-            value : 'submit',
-            label : '@@processAdministration.submit@@'
+            "value" : "submit",
+            "label" : "@@processAdministration.submit@@"
           },
           {
-            value : 'abort',
-            label : '@@processAdministration.abort@@'
+            "value" : "abort",
+            "label" : "@@processAdministration.abort@@"
           },
           {
-            value : 'reevaluate',
-            label : '@@processAdministration.reevaluate@@'
+            "value" : "reevaluate",
+            "label" : "@@processAdministration.reevaluate@@"
           },
           {
-            value : 'migrate',
-            label : '@@processAdministration.migrate@@'
+            "value" : "migrate",
+            "label" : "@@processAdministration.migrate@@"
           },
           {
-            value : 'viewGraph',
-            label : '@@processAdministration.viewGraph@@'
+            "value" : "viewGraph",
+            "label" : "@@processAdministration.viewGraph@@"
           }
         ]
       },
       {
-        name : 'workflowVariables',
-        label : '@@processAdministration.workflowVariables@@',
-        type : 'grid',
-        control_field : 'action',
-        control_value : 'complete',
-        columns : [
+        "name" : "workflowVariables",
+        "label" : "@@processAdministration.workflowVariables@@",
+        "type" : "grid",
+        "control_field" : "action",
+        "control_value_regex" : "complete",
+        "columns" : [
           {
-            key : 'variable',
-            label : '@@processAdministration.variable@@',
-            required : 'true'
+            "key" : "variable",
+            "label" : "@@processAdministration.variable@@",
+            "required" : "true"
           },
           {
-            key : 'value',
-            label : '@@processAdministration.value@@'
+            "key" : "value",
+            "label" : "@@processAdministration.value@@"
           }
         ]
       },
       {
-        name : 'formFields',
-        label : '@@processAdministration.formFields@@',
-        type : 'grid',
-        control_field : 'action',
-        control_value : 'submit',
-        columns : [
+        "name" : "formFields",
+        "label" : "@@processAdministration.formFields@@",
+        "type" : "grid",
+        "control_field" : "action",
+        "control_value" : "submit",
+        "columns" : [
           {
-            key : 'field',
-            label : '@@processAdministration.field@@',
-            required : 'true'
+            "key" : "field",
+            "label" : "@@processAdministration.field@@",
+            "required" : "true"
           },
           {
-            key : 'value',
-            label : '@@processAdministration.value@@'
+            "key" : "value",
+            "label" : "@@processAdministration.value@@"
           }
         ]
       },
       {
-        name : 'forceAction',
-        label : '@@processAdministration.forceAction@@',
-        type : 'checkbox',
-        control_field : 'action',
-        control_value_regex : 'migrate|complete',
-        options : [
+        "name" : "forceAction",
+        "label" : "@@processAdministration.forceAction@@",
+        "type" : "checkbox",
+        "control_field" : "action",
+        "control_value_regex" : "migrate|complete",
+        "options" : [
           {
-            value : 'true',
-            label : ''
+            "value" : "true",
+            "label" : ""
           }
         ]
       },
       {
-        name : 'stepsVariable',
-        label : '@@processAdministration.stepsVariable@@',
-        description : '@@processAdministration.stepsVariable.desc@@',
-        type : 'textfield',
-        control_field : 'action',
-        regex_validation : '^[0-9]+$'
+        "name" : "stepsVariable",
+        "label" : "@@processAdministration.stepsVariable@@",
+        "description" : "@@processAdministration.stepsVariable.desc@@",
+        "type" : "textfield",
+        "control_field" : "action",
+        "regex_validation" : "^[0-9]+$"
       }
     ]
   }

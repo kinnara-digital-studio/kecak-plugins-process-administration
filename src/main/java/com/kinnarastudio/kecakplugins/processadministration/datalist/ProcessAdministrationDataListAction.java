@@ -31,7 +31,6 @@ import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ProcessAdministrationDataListAction extends DataListActionDefault implements Declutter {
 
@@ -89,6 +88,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
         final AppService appService = (AppService) appContext.getBean("appService");
         final WorkflowUserManager workflowUserManager = (WorkflowUserManager) appContext.getBean("workflowUserManager");
 
+        final String action = getPropertyString("action");
+
         workflowUserManager.setCurrentThreadUser(WorkflowUtil.getCurrentUsername());
 
         final DataListActionResult result = new DataListActionResult();
@@ -96,7 +97,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
 //        result.setUrl("REFERER");
         result.setUrl(this.getRedirectUrl());
         // complete assignment
-        if ("complete".equalsIgnoreCase(getPropertyString("action"))) {
+        if ("complete".equalsIgnoreCase(action)) {
             final Map<String, String> worklfowVariables = Optional.ofNullable((Object[]) getProperty("workflowVariables"))
                     .stream()
                     .flatMap(Arrays::stream)
@@ -126,7 +127,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     workflowManager.assignmentComplete(a.getActivityId(), worklfowVariables);
                 });
             }
-        } else if ("submit".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("submit".equalsIgnoreCase(action)) {
             final Object[] formFields = (Object[]) getProperty("formFields");
 
             getAssignments(rowKeys).forEach(a -> {
@@ -140,43 +141,42 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 formData.addRequestParameterValues(FormUtil.getElementParameterName(form) + "_SUBMITTED", new String[]{""});
                 formData.addRequestParameterValues(AssignmentCompleteButton.DEFAULT_ID, new String[]{"true"});
 
-                if (formFields != null) {
-                    Arrays.stream(formFields)
-                            .map(o -> (Map<String, String>) o)
-                            .map(m -> {
-                                Map<String, String> field = new HashMap<>();
-                                field.put(m.get("field"), AppUtil.processHashVariable(m.get("value"), a, null, null));
-                                return field;
-                            })
-                            .map(Map::entrySet)
-                            .flatMap(Collection::stream)
-                            .forEach(e -> {
-                                Element element = FormUtil.findElement(e.getKey(), form, formData, true);
-                                if (element != null) {
-                                    String parameterName = FormUtil.getElementParameterName(element);
-                                    formData.addRequestParameterValues(parameterName, new String[]{e.getValue()});
-                                }
-                            });
-                }
+                Optional.ofNullable(formFields)
+                        .stream()
+                        .flatMap(Arrays::stream)
+                        .map(o -> (Map<String, String>) o)
+                        .map(m -> {
+                            Map<String, String> field = new HashMap<>();
+                            field.put(m.get("field"), AppUtil.processHashVariable(m.get("value"), a, null, null));
+                            return field;
+                        })
+                        .map(Map::entrySet)
+                        .flatMap(Collection::stream)
+                        .forEach(e -> {
+                            Element element = FormUtil.findElement(e.getKey(), form, formData, true);
+                            if (element != null) {
+                                String parameterName = FormUtil.getElementParameterName(element);
+                                formData.addRequestParameterValues(parameterName, new String[]{e.getValue()});
+                            }
+                        });
 
-                appService
-                        .completeAssignmentForm(form, a, formData, new HashMap<>())
+                appService.completeAssignmentForm(form, a, formData, new HashMap<>())
                         .getFormErrors().forEach((field, message) -> {
-                            LogUtil.error(getClassName(), null, "[" + getPropertyString("action").toUpperCase() + "] Error form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field + "] message [" + message + "]");
+                            LogUtil.error(getClassName(), null, "[" + action.toUpperCase() + "] Error form [" + form.getPropertyString(FormUtil.PROPERTY_ID) + "] field [" + field + "] message [" + message + "]");
                         });
             });
-        } else if ("reevaluate".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("reevaluate".equalsIgnoreCase(action)) {
             getAssignments(rowKeys)
                     .stream()
                     .map(WorkflowAssignment::getActivityId)
                     .forEach(workflowManager::reevaluateAssignmentsForActivity);
 
-        } else if ("abort".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("abort".equalsIgnoreCase(action)) {
             getRunningProcess(rowKeys).stream()
                     .map(WorkflowProcess::getInstanceId)
-                    .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] process [" + pid + "]"))
+                    .peek(pid -> LogUtil.info(getClassName(), "[" + action.toUpperCase() + "] process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
-        } else if ("migrate".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("migrate".equalsIgnoreCase(action)) {
             final AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
             getRunningProcess(rowKeys).stream()
@@ -194,7 +194,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                             return null;
                         }
 
-                        LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] Migrating process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
+                        LogUtil.info(getClassName(), "[" + action.toUpperCase() + "] Migrating process [" + p.getInstanceId() + "] from [" + currentProcessDefId + "] to [" + publishedProcessDefId + "]");
                         return workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
                     })
                     .filter(Objects::nonNull)
@@ -206,7 +206,7 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     .map(WorkflowProcess::getInstanceId)
                     .filter(Objects::nonNull)
 
-                    .peek(pid -> LogUtil.info(getClassName(), "[" + getPropertyString("action").toUpperCase() + "] New process [" + pid + "]"))
+                    .peek(pid -> LogUtil.info(getClassName(), "[" + action.toUpperCase() + "] New process [" + pid + "]"))
 
                     // get the latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
@@ -220,12 +220,12 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     .map(WorkflowActivity::getId)
                     .forEach(workflowManager::reevaluateAssignmentsForActivity);
 
-        } else if ("viewGraph".equalsIgnoreCase(getPropertyString("action"))) {
+        } else if ("viewGraph".equalsIgnoreCase(action)) {
             getRunningProcess(rowKeys).stream().map(WorkflowProcess::getInstanceId).forEach((p) -> {
                 result.setUrl("/web/console/monitor/process/graph/" + p);
             });
         } else {
-            LogUtil.warn(getClassName(), "Action [" + getPropertyString("action") + "] is not supported yet");
+            LogUtil.warn(getClassName(), "Action [" + action + "] is not supported yet");
         }
         return result;
     }
