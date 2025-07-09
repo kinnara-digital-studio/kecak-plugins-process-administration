@@ -180,7 +180,12 @@
         <dependency>
             <groupId>com.kinnarastudio</groupId>
             <artifactId>kinnara-commons</artifactId>
-            <version>4.2.1</version>
+            <version>4.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.jettison</groupId>
+            <artifactId>jettison</artifactId>
+            <version>1.5.4</version>
         </dependency>
         <!-- End change plugin specific dependencies here -->
     </dependencies>

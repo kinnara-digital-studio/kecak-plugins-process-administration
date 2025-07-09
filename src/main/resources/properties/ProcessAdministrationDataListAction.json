@@ -45,6 +45,28 @@
         ]
       },
       {
+        "name" : "formDefId",
+        "label" : "Form",
+        "control_field" : "action",
+        "control_value" : "abort",
+        "type":"selectbox",
+        "options_ajax": "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/forms/options"
+      },
+      {
+        "name" : "columnName",
+        "label" : "Column Name",
+        "control_field" : "action",
+        "control_value" : "abort",
+        "type":"textfield"
+      },
+      {
+        "name" : "columnValue",
+        "label" : "Column Value",
+        "control_field" : "action",
+        "control_value" : "abort",
+        "type":"textfield"
+      },
+      {
         "name" : "workflowVariables",
         "label" : "@@processAdministration.workflowVariables@@",
         "type" : "grid",

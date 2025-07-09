@@ -1,6 +1,19 @@
 package com.kinnarastudio.kecakplugins.processadministration.datalist;
 
-import com.kinnarastudio.commons.Declutter;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.ResourceBundle;
+import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletRequest;
+
 import org.enhydra.shark.api.common.SharkConstants;
 import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.dao.FormDefinitionDao;
@@ -12,25 +25,30 @@ import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.datalist.model.DataList;
 import org.joget.apps.datalist.model.DataListActionDefault;
 import org.joget.apps.datalist.model.DataListActionResult;
+import org.joget.apps.form.dao.FormDataDao;
 import org.joget.apps.form.model.Element;
 import org.joget.apps.form.model.Form;
 import org.joget.apps.form.model.FormData;
+import org.joget.apps.form.model.FormRow;
+import org.joget.apps.form.model.FormRowSet;
 import org.joget.apps.form.service.FormService;
 import org.joget.apps.form.service.FormUtil;
 import org.joget.apps.workflow.lib.AssignmentCompleteButton;
 import org.joget.commons.util.LogUtil;
+import org.joget.commons.util.StringUtil;
 import org.joget.plugin.base.PluginManager;
-import org.joget.workflow.model.*;
+import org.joget.workflow.model.WorkflowActivity;
+import org.joget.workflow.model.WorkflowAssignment;
+import org.joget.workflow.model.WorkflowProcess;
+import org.joget.workflow.model.WorkflowProcessLink;
+import org.joget.workflow.model.WorkflowProcessResult;
 import org.joget.workflow.model.dao.WorkflowProcessLinkDao;
 import org.joget.workflow.model.service.WorkflowManager;
 import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.springframework.context.ApplicationContext;
 
-import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletRequest;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.kinnarastudio.commons.Declutter;
 
 public class ProcessAdministrationDataListAction extends DataListActionDefault implements Declutter {
 
@@ -176,6 +194,35 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     .map(WorkflowProcess::getInstanceId)
                     .peek(pid -> LogUtil.info(getClassName(), "[" + action.toUpperCase() + "] process [" + pid + "]"))
                     .forEach(workflowManager::processAbort);
+
+            String formDefId = getPropertyString("formDefId");
+
+            if (formDefId != null && !formDefId.equals("")) {
+                AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+                Form form = getForm(appDef, formDefId);
+                FormDataDao formDataDao = (FormDataDao) appContext.getBean("formDataDao");
+
+                if (form == null) {
+                    LogUtil.info(getClassName(), "Form is null for formDefId: " + formDefId);
+                    return null;
+                }
+
+                String columnName = getPropertyString("columnName");
+                String columnValue = getPropertyString("columnValue");
+
+                LogUtil.info(getClassName(), "Row Keys: " + Arrays.toString(rowKeys));
+
+                for (String rowKey : rowKeys) {
+                    FormRow row = formDataDao.load(form, rowKey);
+                    if (row != null) {
+                        row.setProperty(columnName, columnValue);
+                        FormRowSet rowSet = new FormRowSet();
+                        rowSet.add(row);
+                        rowSet.setMultiRow(false);
+                        formDataDao.saveOrUpdate(form, rowSet);
+                    }
+                }
+            }
         } else if ("migrate".equalsIgnoreCase(action)) {
             final AppDefinition publishedAppDefinition = appDefinitionDao.loadVersion(currentAppDefinition.getAppId(), appDefinitionDao.getPublishedVersion(currentAppDefinition.getAppId()));
 
@@ -198,24 +245,18 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                         return workflowManager.processCopyFromInstanceId(p.getInstanceId(), publishedProcessDefId, true);
                     })
                     .filter(Objects::nonNull)
-
                     // get process from process result
                     .map(WorkflowProcessResult::getProcess)
                     .filter(Objects::nonNull)
-
                     .map(WorkflowProcess::getInstanceId)
                     .filter(Objects::nonNull)
-
                     .peek(pid -> LogUtil.info(getClassName(), "[" + action.toUpperCase() + "] New process [" + pid + "]"))
-
                     // get the latest activity, assume only handle the latest one
                     .map(pid -> workflowManager.getActivityList(pid, 0, 1, "dateCreated", true))
                     .filter(Objects::nonNull)
                     .flatMap(Collection::stream)
-
                     // check status = open
                     .filter(activity -> checkIfMigrationVisible(activity, publishedAppDefinition))
-
                     // reevaluate process
                     .map(WorkflowActivity::getId)
                     .forEach(workflowManager::reevaluateAssignmentsForActivity);
@@ -233,6 +274,22 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
     @Override
     public String getName() {
         return getClass().getName();
+    }
+
+    protected Form getForm(AppDefinition appDef, String formDefId) {
+        FormService formService = (FormService) AppUtil.getApplicationContext().getBean("formService");
+        FormDefinitionDao formDefinitionDao = (FormDefinitionDao) AppUtil.getApplicationContext().getBean("formDefinitionDao");
+
+        Form form = null;
+        FormDefinition formDef = formDefinitionDao.loadById(formDefId, appDef);
+
+        if (formDef != null && formDef.getJson() != null) {
+            String formJson = formDef.getJson();
+            formJson = AppUtil.processHashVariable(formJson, null, StringUtil.TYPE_JSON, null);
+            form = (Form) formService.createElementFromJson(formJson);
+        }
+
+        return form;
     }
 
     @Override
@@ -269,8 +326,9 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
         FormDefinitionDao formDefinitionDao = (FormDefinitionDao) appContext.getBean("formDefinitionDao");
 
         // check in cache
-        if (formCache.containsKey(formDefId))
+        if (formCache.containsKey(formDefId)) {
             return formCache.get(formDefId);
+        }
 
         // proceed without cache
         if (appDef != null && formDefId != null && !formDefId.isEmpty()) {
@@ -279,8 +337,9 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 String json = formDef.getJson();
                 Form form = (Form) formService.createElementFromJson(json);
 
-                if (form != null)
+                if (form != null) {
                     formCache.put(formDefId, form);
+                }
 
                 return form;
             }
@@ -322,7 +381,6 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 .collect(Collectors.toSet());
     }
 
-
     protected Collection<WorkflowActivity> getOpenActivities(String[] rowKeys) {
         final ApplicationContext appContext = AppUtil.getApplicationContext();
         final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
@@ -355,15 +413,12 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 .map(processLinkDao::getLinks)
                 .flatMap(Collection::stream)
                 .filter(Objects::nonNull)
-
                 .map(WorkflowProcessLink::getProcessId)
                 .filter(Objects::nonNull)
                 .distinct()
-
                 .map(workflowManager::getRunningProcessById)
                 .filter(Objects::nonNull)
                 .filter(p -> p.getState() != null && p.getState().startsWith("open"))
-
                 .collect(Collectors.toSet());
     }
 
@@ -375,10 +430,8 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 .map(WorkflowProcessLink::getParentProcessId)
                 .map(workflowManager::getRunningProcessById)
                 .filter(p -> Optional.of(p).map(WorkflowProcess::getState).map(s -> s.startsWith("open")).orElse(false))
-
                 // recursively looking for the further parent
                 .map(this::getGreatGreatGrandParent)
-
                 .orElse(process);
     }
 
