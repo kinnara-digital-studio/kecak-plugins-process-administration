@@ -207,15 +207,21 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                     return null;
                 }
 
-                String columnName = getPropertyString("columnName");
-                String columnValue = getPropertyString("columnValue");
-
-                LogUtil.info(getClassName(), "Row Keys: " + Arrays.toString(rowKeys));
+                Map<String, String>[] formFields = getPropertyGrid("formFields");
 
                 for (String rowKey : rowKeys) {
                     FormRow row = formDataDao.load(form, rowKey);
                     if (row != null) {
-                        row.setProperty(columnName, columnValue);
+                        for (Map<String, String> formField : formFields) {
+                            String key = formField.get("field");
+                            String value = formField.get("value");
+                            
+                            LogUtil.info(getClassName(), "Key: [" + key + "], Value: [" + value + "]");
+
+                            if (key != null && value != null) {
+                                row.setProperty(key, value);
+                            }
+                        }
                         FormRowSet rowSet = new FormRowSet();
                         rowSet.add(row);
                         rowSet.setMultiRow(false);

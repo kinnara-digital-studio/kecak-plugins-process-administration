@@ -53,25 +53,11 @@
         "options_ajax": "[CONTEXT_PATH]/web/json/console/app[APP_PATH]/forms/options"
       },
       {
-        "name" : "columnName",
-        "label" : "Column Name",
-        "control_field" : "action",
-        "control_value" : "abort",
-        "type":"textfield"
-      },
-      {
-        "name" : "columnValue",
-        "label" : "Column Value",
-        "control_field" : "action",
-        "control_value" : "abort",
-        "type":"textfield"
-      },
-      {
         "name" : "workflowVariables",
         "label" : "@@processAdministration.workflowVariables@@",
         "type" : "grid",
         "control_field" : "action",
-        "control_value_regex" : "complete",
+        "control_value" : "complete",
         "columns" : [
           {
             "key" : "variable",
@@ -89,7 +75,8 @@
         "label" : "@@processAdministration.formFields@@",
         "type" : "grid",
         "control_field" : "action",
-        "control_value" : "submit",
+        "control_value" : "submit|abort",
+        "control_use_regex": "true",
         "columns" : [
           {
             "key" : "field",
