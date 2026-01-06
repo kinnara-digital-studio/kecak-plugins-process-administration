@@ -2,7 +2,6 @@ package com.kinnarastudio.kecakplugins.processadministration.form;
 
 import com.kinnarastudio.commons.Try;
 import com.kinnarastudio.commons.jsonstream.JSONCollectors;
-import org.joget.apps.app.dao.AppDefinitionDao;
 import org.joget.apps.app.model.AppDefinition;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.apps.form.model.*;
@@ -19,8 +18,14 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsBinder, FormAjaxOptionsBinder, PluginWebSupport {
     @Override
@@ -33,20 +38,47 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
     public FormRowSet loadAjaxOptions(String[] dependencyValues) {
         ApplicationContext applicationContext = AppUtil.getApplicationContext();
         WorkflowManager workflowManager = (WorkflowManager) applicationContext.getBean("workflowManager");
-        AppDefinitionDao appDefinitionDao = (AppDefinitionDao) applicationContext.getBean("appDefinitionDao");
-        return appDefinitionDao.findByVersion(null, null, null, null, null, null, null, null)
+        AppDefinition appDefinition = AppUtil.getCurrentAppDefinition();
+
+        Pattern valuePattern = getValuePattern();
+        Pattern labelPattern = getLabelPattern();
+
+        String appId = isAllApps() ? null : appDefinition.getAppId();
+        String appVersion = isAllApps() ? null : appDefinition.getVersion().toString();
+        boolean showValueInLabel = showValueInLabel();
+        FormRowSet result = Optional.ofNullable(workflowManager.getProcessList(appId, appVersion))
                 .stream()
+                .flatMap(Collection::stream)
+                .map(p -> {
+                    String value = p.getIdWithoutVersion();
+                    String label = AppUtil.processHashVariable(p.getName(), null, null, null);
+                    Matcher mValue = valuePattern.matcher(value);
+                    Matcher mLabel = labelPattern.matcher(label + (showValueInLabel ? " (" + value + ")" : ""));
+
+                    if (mValue.find() && mLabel.find()) {
+                        return new FormRow() {{
+                            put(FormUtil.PROPERTY_VALUE, value);
+                            put(FormUtil.PROPERTY_LABEL, label);
+                            put(FormUtil.PROPERTY_GROUPING, p.getPackageId());
+                        }};
+                    } else {
+                        return null;
+                    }
+                })
                 .filter(Objects::nonNull)
-                .map(AppDefinition::getPackageDefinition)
-                .filter(Objects::nonNull)
-                .collect(FormRowSet::new, (rs, pd) -> workflowManager.getProcessList(pd.getAppId(), pd.getVersion().toString())
-                        .forEach(p -> {
-                            FormRow row = new FormRow();
-                            row.put(FormUtil.PROPERTY_VALUE, p.getIdWithoutVersion());
-                            row.put(FormUtil.PROPERTY_LABEL, p.getName() + " (" + p.getIdWithoutVersion() + ")");
-                            row.put(FormUtil.PROPERTY_GROUPING, pd.getAppId());
-                            rs.add(row);
-                        }), FormRowSet::addAll);
+                .distinct()
+                .collect(Collectors.toCollection(FormRowSet::new));
+
+        String emptyOptionLabel = getEmptyOptionLabel();
+        if (!emptyOptionLabel.isEmpty()) {
+            result.add(0, new FormRow() {{
+                put(FormUtil.PROPERTY_VALUE, "");
+                put(FormUtil.PROPERTY_LABEL, emptyOptionLabel);
+            }});
+        }
+        result.setMultiRow(true);
+
+        return result;
     }
 
     @Override
@@ -85,12 +117,16 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
 
     @Override
     public String getPropertyOptions() {
-        return "";
+        return AppUtil.readPluginResource(ProcessOptionsBinder.class.getName(), "/properties/form/ProcessOptionsBinder.json");
     }
 
     @Override
     public void webService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        JSONArray result = loadAjaxOptions(null).stream()
+        request.getParameterMap().forEach((key, value) -> setProperty(String.valueOf(key), String.valueOf(value)));
+
+        JSONArray result = loadAjaxOptions(null)
+                .stream()
+                .filter(Objects::nonNull)
                 .map(Try.onFunction(r -> {
                     JSONObject jsonObject = new JSONObject();
                     jsonObject.put(FormUtil.PROPERTY_VALUE, r.getProperty(FormUtil.PROPERTY_VALUE));
@@ -98,9 +134,34 @@ public class ProcessOptionsBinder extends FormBinder implements FormLoadOptionsB
                     jsonObject.put(FormUtil.PROPERTY_GROUPING, r.getProperty(FormUtil.PROPERTY_GROUPING));
                     return jsonObject;
                 }))
-                .filter(Objects::nonNull)
                 .collect(JSONCollectors.toJSONArray());
 
         response.getWriter().write(result.toString());
+    }
+
+    protected boolean isAllApps() {
+        return "true".equalsIgnoreCase(getPropertyString("allApps"));
+    }
+
+    protected Pattern getValuePattern() {
+        String pattern = Optional.ofNullable(getPropertyString("valuePattern"))
+                .filter(Predicate.not(String::isEmpty))
+                .orElse(".*");
+        return Pattern.compile(pattern);
+    }
+
+    protected Pattern getLabelPattern() {
+        String pattern = Optional.ofNullable(getPropertyString("labelPattern"))
+                .filter(Predicate.not(String::isEmpty))
+                .orElse(".*");
+        return Pattern.compile(pattern);
+    }
+
+    protected String getEmptyOptionLabel() {
+        return getPropertyString("emptyOptionLabel");
+    }
+
+    protected boolean showValueInLabel() {
+        return "true".equalsIgnoreCase(getPropertyString("showValueInLabel"));
     }
 }

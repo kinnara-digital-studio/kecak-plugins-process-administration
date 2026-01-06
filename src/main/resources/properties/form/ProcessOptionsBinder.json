@@ -1,0 +1,33 @@
+[
+  {
+    "title": "Process Options Binder",
+    "properties": [
+      {
+        "name": "valuePattern",
+        "label": "Value Pattern Regex",
+        "type": "textfield"
+      },
+      {
+        "name": "labelPattern",
+        "label": "Label Pattern Regex",
+        "type": "textfield"
+      },
+      {
+        "name": "emptyOptionLabel",
+        "label": "Empty Option Label",
+        "type": "textfield"
+      },
+      {
+        "name": "showValueInLabel",
+        "label": "Show Value in Label",
+        "type": "checkbox",
+        "options": [
+          {
+            "value": "true",
+            "label": ""
+          }
+        ]
+      }
+    ]
+  }
+]
