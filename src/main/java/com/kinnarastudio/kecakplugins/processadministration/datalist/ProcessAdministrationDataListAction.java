@@ -126,10 +126,9 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 final String currentUsername = WorkflowUtil.getCurrentUsername();
 
                 getOpenActivities(rowKeys)
-                        .stream()
-                        .filter(a -> a.getState().startsWith("open.not_running"))
                         .forEach(a -> {
-                            final String activityId = a.getId();
+                            final String activityId = a.getActivityId();
+
                             // set workflow variables
                             workflowManager.activityVariables(activityId, worklfowVariables);
 
@@ -387,16 +386,12 @@ public class ProcessAdministrationDataListAction extends DataListActionDefault i
                 .collect(Collectors.toSet());
     }
 
-    protected Collection<WorkflowActivity> getOpenActivities(String[] rowKeys) {
+    protected Collection<WorkflowAssignment> getOpenActivities(String[] rowKeys) {
         final ApplicationContext appContext = AppUtil.getApplicationContext();
         final WorkflowManager workflowManager = (WorkflowManager) appContext.getBean("workflowManager");
 
-        return getRunningProcesses(rowKeys)
-                .stream()
-                .map(p -> workflowManager.getActivityList(p.getInstanceId(), 0, Integer.MAX_VALUE, null, null))
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(a -> a.getState().startsWith("open"))
+        return Arrays.stream(rowKeys)
+                .map(s -> workflowManager.getAssignmentByRecordId(s, null, null, null))
                 .collect(Collectors.toSet());
     }
 

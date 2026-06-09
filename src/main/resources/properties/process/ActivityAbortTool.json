@@ -1,0 +1,13 @@
+[
+  {
+    "title": "Abort Activity",
+    "properties": [
+      {
+        "name": "activityDefIds",
+        "label": "Activity IDs to Abort",
+        "type": "textfield",
+        "description": "Semicolon-separated list of activity IDs to abort (e.g., activity1;activity2)"
+      }
+    ]
+  }
+]

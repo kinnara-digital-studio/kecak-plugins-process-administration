@@ -10,6 +10,7 @@ import com.kinnarastudio.kecakplugins.processadministration.datalist.ProcessAdmi
 import com.kinnarastudio.kecakplugins.processadministration.datalist.ProcessMonitoringDataListBinder;
 import com.kinnarastudio.kecakplugins.processadministration.datalist.ProcessPerformerFormatter;
 import com.kinnarastudio.kecakplugins.processadministration.form.*;
+import com.kinnarastudio.kecakplugins.processadministration.process.ActivityAbortTool;
 import com.kinnarastudio.kecakplugins.processadministration.userview.ProcessReassignmentUserviewMenu;
 import com.kinnarastudio.kecakplugins.processadministration.process.ProcessAdministrationTool;
 import com.kinnarastudio.kecakplugins.processadministration.process.ProcessCompletionTool;
@@ -41,6 +42,7 @@ public class Activator implements BundleActivator {
         registrationList.add(context.registerService(ProcessPerformerFormatter.class.getName(), new ProcessPerformerFormatter(), null));
         registrationList.add(context.registerService(ProcessCompletionUrlWebService.class.getName(), new ProcessCompletionUrlWebService(), null));
         registrationList.add(context.registerService(SuperInboxUserviewMenu.class.getName(), new SuperInboxUserviewMenu(), null));
+        registrationList.add(context.registerService(ActivityAbortTool.class.getName(), new ActivityAbortTool(), null));
 //        registrationList.add(context.registerService(ProcessReviveDataListAction.class.getName(), new ProcessReviveDataListAction(), null));
 
     }
